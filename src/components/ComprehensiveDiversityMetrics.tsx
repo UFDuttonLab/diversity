@@ -157,20 +157,28 @@ const ComprehensiveDiversityMetrics: React.FC<ComprehensiveDiversityMetricsProps
   const alphaMetrics = communities.map(calculateAlphaDiversity);
   const betaMetrics = calculateBetaDiversity();
 
-  const MetricCard = ({ title, value, formula, interpretation }: { 
+  const MetricCard = ({ title, value, formula, interpretation, whenToUse, relatedMetrics }: { 
     title: string; 
     value: number; 
     formula: string; 
-    interpretation: string; 
+    interpretation: string;
+    whenToUse: string;
+    relatedMetrics: string;
   }) => (
-    <div className="p-4 border rounded-lg space-y-2">
+    <div className="p-4 border rounded-lg space-y-3">
       <div className="flex items-center justify-between">
         <h4 className="font-medium text-sm">{title}</h4>
         <Badge variant="outline">{value.toFixed(3)}</Badge>
       </div>
-      <div className="text-xs text-muted-foreground space-y-1">
+      <div className="text-xs text-muted-foreground space-y-2">
         <div><strong>Formula:</strong> {formula}</div>
         <div><strong>Meaning:</strong> {interpretation}</div>
+        <div className="pt-1 border-t border-muted/20">
+          <div><strong>When to use:</strong> {whenToUse}</div>
+        </div>
+        <div className="pt-1 border-t border-muted/20">
+          <div><strong>Related metrics:</strong> {relatedMetrics}</div>
+        </div>
       </div>
     </div>
   );
@@ -199,54 +207,72 @@ const ComprehensiveDiversityMetrics: React.FC<ComprehensiveDiversityMetricsProps
                   value={alphaMetrics.reduce((sum, m) => sum + m.richness, 0) / alphaMetrics.length}
                   formula="S = number of species"
                   interpretation="Basic count of species present"
+                  whenToUse="When you only need to know how many different species are present. Best for simple comparisons between sites."
+                  relatedMetrics="Margalef and Menhinick indices adjust richness for sample size. Fisher's alpha provides sample-size independent richness."
                 />
                 <MetricCard
                   title="Shannon Index (H')"
                   value={alphaMetrics.reduce((sum, m) => sum + m.shannon, 0) / alphaMetrics.length}
                   formula="H' = -Σ(pi × ln(pi))"
                   interpretation="Accounts for richness and evenness"
+                  whenToUse="When you want to consider both the number of species AND how evenly distributed they are. Best general-purpose diversity index."
+                  relatedMetrics="Higher values than Simpson index. Related to Pielou's evenness (J' = H'/ln(S)). More sensitive to rare species than Simpson."
                 />
                 <MetricCard
                   title="Simpson Diversity (1-D)"
                   value={alphaMetrics.reduce((sum, m) => sum + m.simpsonDiversity, 0) / alphaMetrics.length}
                   formula="1-D = 1 - Σ(pi²)"
                   interpretation="Probability two individuals differ"
+                  whenToUse="When you want to emphasize the contribution of common species. Less sensitive to rare species than Shannon index."
+                  relatedMetrics="Inverse Simpson (1/D) gives effective number of species. More weight to dominant species than Shannon index."
                 />
                 <MetricCard
                   title="Inverse Simpson (1/D)"
                   value={alphaMetrics.reduce((sum, m) => sum + m.inverseSimpson, 0) / alphaMetrics.length}
                   formula="1/D = 1/Σ(pi²)"
                   interpretation="Effective number of species"
+                  whenToUse="When you want to know how many equally-abundant species would give the same diversity. Easier to interpret than Simpson diversity."
+                  relatedMetrics="Direct transformation of Simpson index. Always ≥ species richness. Closely related to Hill numbers (N1)."
                 />
                 <MetricCard
                   title="Pielou's Evenness (J')"
                   value={alphaMetrics.reduce((sum, m) => sum + m.pielou, 0) / alphaMetrics.length}
                   formula="J' = H'/ln(S)"
                   interpretation="How evenly individuals are distributed"
+                  whenToUse="When you want to separate the effects of richness from evenness. Values range 0-1, making comparisons easy."
+                  relatedMetrics="Normalizes Shannon index by maximum possible value. Inversely related to Berger-Parker dominance. Independent of richness."
                 />
                 <MetricCard
                   title="Berger-Parker Dominance"
                   value={alphaMetrics.reduce((sum, m) => sum + m.bergerParker, 0) / alphaMetrics.length}
                   formula="BP = Nmax/N"
                   interpretation="Proportion of most abundant species"
+                  whenToUse="When you want a simple measure of how much one species dominates the community. High values indicate low evenness."
+                  relatedMetrics="Inversely related to evenness measures. Simpler than Simpson-based indices. Range 1/S to 1."
                 />
                 <MetricCard
                   title="Fisher's Alpha"
                   value={alphaMetrics.reduce((sum, m) => sum + m.fishersAlpha, 0) / alphaMetrics.length}
                   formula="α ≈ (S-1)/ln(N)"
                   interpretation="Species diversity independent of sample size"
+                  whenToUse="When comparing communities with very different sample sizes. Assumes log-series species abundance distribution."
+                  relatedMetrics="Similar to Margalef but based on different assumptions. Less affected by sample size than simple richness."
                 />
                 <MetricCard
                   title="Margalef's Richness"
                   value={alphaMetrics.reduce((sum, m) => sum + m.margalef, 0) / alphaMetrics.length}
                   formula="R = (S-1)/ln(N)"
                   interpretation="Species richness adjusted for sample size"
+                  whenToUse="When you need to compare richness between samples of different sizes. Assumes constant sampling effort."
+                  relatedMetrics="Similar formula to Fisher's alpha but different theoretical basis. Both correct for sample size effects."
                 />
                 <MetricCard
                   title="Menhinick's Richness"
                   value={alphaMetrics.reduce((sum, m) => sum + m.menhinick, 0) / alphaMetrics.length}
                   formula="R = S/√N"
                   interpretation="Species richness per square root of individuals"
+                  whenToUse="Alternative to Margalef for sample-size correction. Better when species accumulation follows square-root pattern."
+                  relatedMetrics="Different sample-size correction than Margalef or Fisher's alpha. Generally gives lower values than Margalef."
                 />
               </div>
             </TabsContent>
@@ -258,42 +284,56 @@ const ComprehensiveDiversityMetrics: React.FC<ComprehensiveDiversityMetricsProps
                   value={betaMetrics.whittakerBeta}
                   formula="βw = γ/α̅"
                   interpretation="Multiplicative partitioning of diversity"
+                  whenToUse="When you want to understand how many times more diverse the region is than the average local community. Classic beta diversity measure."
+                  relatedMetrics="Related to additive beta by γ = α̅ × βw. Values >1 indicate turnover. Fundamental to diversity partitioning theory."
                 />
                 <MetricCard
                   title="Additive Beta"
                   value={betaMetrics.additiveBeta}
                   formula="βa = γ - α̅"
                   interpretation="Additive partitioning of diversity"
+                  whenToUse="When you want to know how many 'extra' species exist due to turnover between communities. Easy to interpret."
+                  relatedMetrics="Related to Whittaker's beta by γ = α̅ + βa. Same units as alpha and gamma diversity (species number)."
                 />
                 <MetricCard
                   title="Harrison's Beta"
                   value={betaMetrics.harrisonBeta}
                   formula="βh = (γ - α̅)/(γ - 1)"
                   interpretation="Standardized beta diversity (0-1)"
+                  whenToUse="When you want a standardized measure that ranges 0-1 for easy comparison across studies with different species pools."
+                  relatedMetrics="Standardized version of additive beta. 0 = no turnover, 1 = complete turnover. Comparable across different systems."
                 />
                 <MetricCard
                   title="Williams' Beta"
                   value={betaMetrics.williamsBeta}
                   formula="βw = (γ - α̅)/γ"
                   interpretation="Proportion of regional diversity due to turnover"
+                  whenToUse="When you want to know what fraction of regional diversity is due to between-community differences rather than local diversity."
+                  relatedMetrics="Also ranges 0-1. Complementary to Harrison's beta but normalized by gamma instead of gamma-1."
                 />
                 <MetricCard
                   title="Routledge's Beta"
                   value={betaMetrics.routledgeBeta}
                   formula="βr = (γ² - Σα²)/(2αγ(n-1))"
                   interpretation="Variance in species composition"
+                  whenToUse="When you want to measure variance in community composition. Particularly useful for detecting environmental gradients."
+                  relatedMetrics="Based on variance concept rather than simple differences. More sensitive to outlier communities than other measures."
                 />
                 <MetricCard
                   title="Jaccard Dissimilarity"
                   value={betaMetrics.jaccardDissimilarity}
                   formula="βj = 1 - |A∩B|/|A∪B|"
                   interpretation="Species turnover (presence/absence)"
+                  whenToUse="When you only have presence/absence data or want to ignore abundance differences. Focus purely on species turnover."
+                  relatedMetrics="Related to Sørensen but more influenced by rare species. Range 0-1. Commonly used in community ecology."
                 />
                 <MetricCard
                   title="Sørensen Dissimilarity"
                   value={betaMetrics.sorensenDissimilarity}
                   formula="βs = 1 - 2|A∩B|/(|A|+|B|)"
                   interpretation="Alternative measure of species turnover"
+                  whenToUse="Alternative to Jaccard when you want to weight shared species more heavily. Less sensitive to rare species."
+                  relatedMetrics="Similar to Jaccard but gives more weight to shared species. Generally gives lower values than Jaccard for same data."
                 />
               </div>
               
@@ -316,6 +356,8 @@ const ComprehensiveDiversityMetrics: React.FC<ComprehensiveDiversityMetricsProps
                     value={betaMetrics.gammaRichness}
                     formula="γ = total unique species"
                     interpretation="Regional species pool"
+                    whenToUse="When you want to understand the total species diversity available across all local communities in a region."
+                    relatedMetrics="Sum of alpha diversity plus species added by beta diversity. Connected to alpha and beta by γ = α̅ × βw or γ = α̅ + βa."
                   />
                   
                   <div className="p-4 border rounded-lg space-y-3">
