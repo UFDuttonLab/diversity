@@ -10,6 +10,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import CommunityVisualization from './CommunityVisualization';
 import ComprehensiveDiversityMetrics from './ComprehensiveDiversityMetrics';
+import AlphaComparison from './AlphaComparison';
 import DiversityCharts from './DiversityCharts';
 import PCAVisualization from './PCAVisualization';
 import PresetScenarios from './PresetScenarios';
@@ -310,6 +311,7 @@ const DiversitySimulator: React.FC = () => {
             {/* Main Visualization Area */}
             <div className="lg:col-span-3 space-y-6">
               <ComprehensiveDiversityMetrics communities={communities} />
+              <AlphaComparison communities={communities} />
               <DiversityCharts communities={communities} />
               <PCAVisualization communities={communities} />
               <CommunityVisualization communities={communities} />
