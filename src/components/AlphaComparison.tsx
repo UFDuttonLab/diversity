@@ -144,6 +144,15 @@ const AlphaComparison: React.FC<AlphaComparisonProps> = ({ communities }) => {
               </tbody>
             </table>
           </div>
+          
+          <div className="mt-4 p-3 bg-educational-info rounded-lg">
+            <h5 className="font-semibold text-sm mb-2">Why This Table Matters</h5>
+            <div className="text-xs space-y-1">
+              <p><strong>Design Choice:</strong> Table format allows precise comparison of numerical values across multiple metrics simultaneously.</p>
+              <p><strong>Interpretation:</strong> Look for patterns - do communities rank similarly across metrics? Differences reveal whether diversity comes from richness vs. evenness.</p>
+              <p><strong>Usage:</strong> Use this to identify which metric best captures the diversity pattern you're interested in for your specific research question.</p>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
@@ -170,6 +179,13 @@ const AlphaComparison: React.FC<AlphaComparisonProps> = ({ communities }) => {
                 </BarChart>
               </ResponsiveContainer>
             </ChartContainer>
+            
+            <div className="mt-3 p-3 bg-educational-info rounded-lg">
+              <div className="text-xs space-y-1">
+                <p><strong>Why side-by-side bars?</strong> Directly compares richness (species count) vs Shannon (richness + evenness combined).</p>
+                <p><strong>Key insight:</strong> When bars are similar height, diversity comes from richness. When Shannon is much lower than richness, community has low evenness.</p>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
@@ -207,6 +223,13 @@ const AlphaComparison: React.FC<AlphaComparisonProps> = ({ communities }) => {
                 </LineChart>
               </ResponsiveContainer>
             </ChartContainer>
+            
+            <div className="mt-3 p-3 bg-educational-warning rounded-lg">
+              <div className="text-xs space-y-1">
+                <p><strong>Why line chart?</strong> Shows how evenness metrics change across communities - trends are easier to see than in bar charts.</p>
+                <p><strong>Key insight:</strong> Pielou's and Berger-Parker should move in opposite directions - high evenness = low dominance. Look for exceptions!</p>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
@@ -231,6 +254,13 @@ const AlphaComparison: React.FC<AlphaComparisonProps> = ({ communities }) => {
                 </BarChart>
               </ResponsiveContainer>
             </ChartContainer>
+            
+            <div className="mt-3 p-3 bg-educational-success rounded-lg">
+              <div className="text-xs space-y-1">
+                <p><strong>Why both Simpson indices?</strong> Simpson diversity (1-D) ranges 0-1, Inverse Simpson (1/D) gives "effective species number".</p>
+                <p><strong>Key insight:</strong> Inverse Simpson is easier to interpret - it tells you how many equally-abundant species would give the same diversity.</p>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
@@ -275,6 +305,13 @@ const AlphaComparison: React.FC<AlphaComparisonProps> = ({ communities }) => {
                 </LineChart>
               </ResponsiveContainer>
             </ChartContainer>
+            
+            <div className="mt-3 p-3 bg-educational-info rounded-lg">
+              <div className="text-xs space-y-1">
+                <p><strong>Why line chart for richness indices?</strong> These metrics correct richness for sample size - lines show if corrections change community rankings.</p>
+                <p><strong>Key insight:</strong> If lines cross, different sample-size corrections give different answers about which community is most diverse.</p>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
