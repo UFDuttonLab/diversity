@@ -163,6 +163,7 @@ const PCAVisualization: React.FC<PCAVisualizationProps> = ({ communities }) => {
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis 
                       dataKey="PC1"
+                      tickFormatter={(value) => value.toFixed(2)}
                       label={{ 
                         value: `PC1 (${pcaStats.explainedVariance[0].toFixed(1)}%)`, 
                         position: 'insideBottom', 
@@ -171,6 +172,7 @@ const PCAVisualization: React.FC<PCAVisualizationProps> = ({ communities }) => {
                     />
                     <YAxis 
                       dataKey="PC2"
+                      tickFormatter={(value) => value.toFixed(2)}
                       label={{ 
                         value: `PC2 (${pcaStats.explainedVariance[1].toFixed(1)}%)`, 
                         angle: -90, 

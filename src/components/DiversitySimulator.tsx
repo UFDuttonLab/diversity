@@ -146,20 +146,28 @@ const DiversitySimulator: React.FC = () => {
                     </DialogHeader>
                     <div className="space-y-4 text-sm">
                       <div>
-                        <h4 className="font-semibold">Alpha Diversity</h4>
-                        <p>The number of species in a single local community. Higher alpha diversity means more species coexist locally.</p>
+                        <h4 className="font-semibold">Alpha Diversity (α)</h4>
+                        <p>The number of species in a single local community. Alpha diversity metrics like Shannon-Wiener and Simpson indices combine both species richness (how many species) and evenness (how evenly distributed they are). Higher values indicate more diverse local communities.</p>
                       </div>
                       <div>
-                        <h4 className="font-semibold">Beta Diversity</h4>
-                        <p>The variation in species composition between communities. High beta diversity indicates different communities have different species.</p>
+                        <h4 className="font-semibold">Beta Diversity (β)</h4>
+                        <p>Measures how species composition changes between communities. High beta diversity means communities share few species in common. Beta diversity connects alpha and gamma diversity through the multiplicative relationship: γ = α × β.</p>
                       </div>
                       <div>
-                        <h4 className="font-semibold">Gamma Diversity</h4>
-                        <p>The total number of species across all communities in a region. This represents the overall species pool.</p>
+                        <h4 className="font-semibold">Gamma Diversity (γ)</h4>
+                        <p>The total species richness across all communities in a landscape. Gamma diversity represents the regional species pool and is influenced by both local diversity (alpha) and community differentiation (beta).</p>
+                      </div>
+                      <div>
+                        <h4 className="font-semibold">How They Connect</h4>
+                        <p><strong>Key relationship:</strong> γ = α × β. When communities are very similar (low β), gamma diversity approaches the average alpha diversity. When communities are completely different (high β), gamma can be much larger than any individual community's alpha diversity.</p>
+                      </div>
+                      <div>
+                        <h4 className="font-semibold">Measurement Insights</h4>
+                        <p><strong>Species richness</strong> counts unique species. <strong>Shannon index</strong> weighs abundant species more heavily. <strong>Simpson index</strong> emphasizes dominant species. <strong>Pielou's evenness</strong> shows how equally abundant species are, independent of richness.</p>
                       </div>
                       <div>
                         <h4 className="font-semibold">Using the Controls</h4>
-                        <p>Adjust the sliders to see how different parameters affect diversity patterns. Try the preset scenarios to explore common ecological patterns.</p>
+                        <p>Adjust the sliders to see how different parameters affect diversity patterns. Try the preset scenarios to explore common ecological patterns. Watch how changing evenness affects different diversity indices differently.</p>
                       </div>
                     </div>
                   </DialogContent>
