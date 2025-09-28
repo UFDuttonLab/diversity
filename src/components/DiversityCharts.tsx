@@ -258,6 +258,7 @@ const DiversityCharts: React.FC<DiversityChartsProps> = ({ communities }) => {
                   dataKey="pielou" 
                   label={{ value: "Pielou's Evenness", position: 'insideBottom', offset: -5 }}
                   domain={[0, 1]}
+                  tickFormatter={(value) => value.toFixed(2)}
                 />
                 <YAxis 
                   dataKey="richness"

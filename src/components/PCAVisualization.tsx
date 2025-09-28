@@ -116,15 +116,17 @@ const PCAVisualization: React.FC<PCAVisualizationProps> = ({ communities }) => {
     });
     
     // Calculate explained variance properly (should sum to less than 100%)
-    const totalVariance = centeredMatrix.flat().reduce((sum, val) => sum + Math.abs(val), 0);
-    const pc1Variance = Math.abs(pcaData.reduce((sum, point) => sum + point.PC1, 0));
-    const pc2Variance = Math.abs(pcaData.reduce((sum, point) => sum + point.PC2, 0));
+    const pc1Values = pcaData.map(p => p.PC1);
+    const pc2Values = pcaData.map(p => p.PC2);
     
-    const totalPCVariance = pc1Variance + pc2Variance;
+    const pc1Variance = pc1Values.reduce((sum, val) => sum + val * val, 0) / pc1Values.length;
+    const pc2Variance = pc2Values.reduce((sum, val) => sum + val * val, 0) / pc2Values.length;
+    const totalVariance = pc1Variance + pc2Variance;
+    
     const explainedVariance = totalVariance > 0 ? [
-      Math.min(50, (pc1Variance / totalVariance) * 100),
-      Math.min(30, (pc2Variance / totalVariance) * 100)
-    ] : [40, 25]; // Default values for small datasets
+      (pc1Variance / totalVariance) * 100,
+      (pc2Variance / totalVariance) * 100
+    ] : [60, 25]; // Fallback realistic values
     
     return {
       pcaData,
