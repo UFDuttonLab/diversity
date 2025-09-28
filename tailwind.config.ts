@@ -22,6 +22,7 @@ export default {
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
+          muted: "hsl(var(--primary-muted))",
         },
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
@@ -46,6 +47,21 @@ export default {
         card: {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
+        },
+        educational: {
+          info: "hsl(var(--educational-info))",
+          success: "hsl(var(--educational-success))",
+          warning: "hsl(var(--educational-warning))",
+        },
+        species: {
+          1: "hsl(var(--species-1))",
+          2: "hsl(var(--species-2))",
+          3: "hsl(var(--species-3))",
+          4: "hsl(var(--species-4))",
+          5: "hsl(var(--species-5))",
+          6: "hsl(var(--species-6))",
+          7: "hsl(var(--species-7))",
+          8: "hsl(var(--species-8))",
         },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",

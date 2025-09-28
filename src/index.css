@@ -2,39 +2,61 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* Educational Ecology App Design System - Nature-inspired, accessible colors */
 
 @layer base {
   :root {
+    /* Background and surface colors */
     --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-
+    --foreground: 210 24% 16%;
+    
+    /* Card and surface elements */
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-
+    --card-foreground: 210 24% 16%;
+    
+    /* Educational interface colors */
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
-
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --popover-foreground: 210 24% 16%;
+    
+    /* Primary - Forest green for nature theme */
+    --primary: 158 64% 52%;
+    --primary-foreground: 0 0% 100%;
+    --primary-muted: 158 64% 92%;
+    
+    /* Secondary - Earth tone for controls */
+    --secondary: 25 40% 94%;
+    --secondary-foreground: 210 24% 16%;
+    
+    /* Muted colors for subtle elements */
+    --muted: 210 20% 96%;
+    --muted-foreground: 210 16% 46%;
+    
+    /* Accent - Ocean blue for highlights */
+    --accent: 207 89% 86%;
+    --accent-foreground: 210 24% 16%;
+    
+    /* Educational status colors */
+    --educational-info: 212 100% 87%;
+    --educational-success: 142 76% 73%;
+    --educational-warning: 38 92% 67%;
+    
+    /* Species visualization colors */
+    --species-1: 15 100% 70%;   /* Coral */
+    --species-2: 45 93% 58%;    /* Golden */
+    --species-3: 120 60% 50%;   /* Green */
+    --species-4: 240 100% 70%;  /* Blue */
+    --species-5: 300 60% 70%;   /* Purple */
+    --species-6: 180 60% 50%;   /* Teal */
+    --species-7: 30 80% 60%;    /* Orange */
+    --species-8: 270 50% 65%;   /* Lavender */
+    
+    /* System colors */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    
+    --border: 210 20% 90%;
+    --input: 210 20% 96%;
+    --ring: 158 64% 52%;
 
     --radius: 0.5rem;
 
@@ -56,33 +78,51 @@ All colors MUST be HSL.
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+    /* Dark mode for educational interface */
+    --background: 210 30% 8%;
+    --foreground: 210 20% 92%;
+    
+    --card: 210 30% 10%;
+    --card-foreground: 210 20% 92%;
+    
+    --popover: 210 30% 10%;
+    --popover-foreground: 210 20% 92%;
+    
+    /* Primary - Brighter forest green for dark mode */
+    --primary: 158 64% 60%;
+    --primary-foreground: 210 30% 8%;
+    --primary-muted: 158 64% 15%;
+    
+    --secondary: 210 30% 15%;
+    --secondary-foreground: 210 20% 92%;
+    
+    --muted: 210 30% 12%;
+    --muted-foreground: 210 16% 65%;
+    
+    --accent: 207 89% 25%;
+    --accent-foreground: 210 20% 92%;
+    
+    /* Dark mode educational colors */
+    --educational-info: 212 100% 25%;
+    --educational-success: 142 76% 30%;
+    --educational-warning: 38 92% 35%;
+    
+    /* Adjusted species colors for dark mode */
+    --species-1: 15 100% 75%;
+    --species-2: 45 93% 65%;
+    --species-3: 120 60% 60%;
+    --species-4: 240 100% 75%;
+    --species-5: 300 60% 75%;
+    --species-6: 180 60% 60%;
+    --species-7: 30 80% 65%;
+    --species-8: 270 50% 70%;
+    
+    --destructive: 0 84% 65%;
+    --destructive-foreground: 210 30% 8%;
+    
+    --border: 210 30% 18%;
+    --input: 210 30% 15%;
+    --ring: 158 64% 60%;
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
     --sidebar-primary: 224.3 76.3% 48%;
