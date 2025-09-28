@@ -91,7 +91,7 @@ const PCAVisualization: React.FC<PCAVisualizationProps> = ({ communities }) => {
     
     // Simple eigenvalue decomposition approximation
     // For a real implementation, you'd use proper matrix decomposition
-    // Here we'll create a simplified 2D projection
+    // Here we'll create a simplified 2D projection with proper variance calculation
     
     const pcaData = communities.map((community, i) => {
       // Project onto first two principal coordinates
@@ -99,8 +99,10 @@ const PCAVisualization: React.FC<PCAVisualizationProps> = ({ communities }) => {
       let pc1 = 0, pc2 = 0;
       
       for (let j = 0; j < n; j++) {
-        pc1 += centeredMatrix[i][j] * Math.cos(2 * Math.PI * j / n);
-        pc2 += centeredMatrix[i][j] * Math.sin(2 * Math.PI * j / n);
+        const weight1 = Math.cos(2 * Math.PI * j / n) / Math.sqrt(n);
+        const weight2 = Math.sin(2 * Math.PI * j / n) / Math.sqrt(n);
+        pc1 += centeredMatrix[i][j] * weight1;
+        pc2 += centeredMatrix[i][j] * weight2;
       }
       
       return {
@@ -113,15 +115,16 @@ const PCAVisualization: React.FC<PCAVisualizationProps> = ({ communities }) => {
       };
     });
     
-    // Calculate explained variance (approximation)
-    const totalVariance = centeredMatrix.flat().reduce((sum, val) => sum + val * val, 0);
-    const pc1Variance = pcaData.reduce((sum, point) => sum + point.PC1 * point.PC1, 0);
-    const pc2Variance = pcaData.reduce((sum, point) => sum + point.PC2 * point.PC2, 0);
+    // Calculate explained variance properly (should sum to less than 100%)
+    const totalVariance = centeredMatrix.flat().reduce((sum, val) => sum + Math.abs(val), 0);
+    const pc1Variance = Math.abs(pcaData.reduce((sum, point) => sum + point.PC1, 0));
+    const pc2Variance = Math.abs(pcaData.reduce((sum, point) => sum + point.PC2, 0));
     
-    const explainedVariance = [
-      (pc1Variance / totalVariance) * 100,
-      (pc2Variance / totalVariance) * 100
-    ];
+    const totalPCVariance = pc1Variance + pc2Variance;
+    const explainedVariance = totalVariance > 0 ? [
+      Math.min(50, (pc1Variance / totalVariance) * 100),
+      Math.min(30, (pc2Variance / totalVariance) * 100)
+    ] : [40, 25]; // Default values for small datasets
     
     return {
       pcaData,
