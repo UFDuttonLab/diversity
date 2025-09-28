@@ -5,11 +5,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Info, Download, RotateCcw } from 'lucide-react';
+import { Info, RotateCcw } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import CommunityVisualization from './CommunityVisualization';
-import DiversityMetrics from './DiversityMetrics';
+import ComprehensiveDiversityMetrics from './ComprehensiveDiversityMetrics';
+import DiversityCharts from './DiversityCharts';
+import PCAVisualization from './PCAVisualization';
 import PresetScenarios from './PresetScenarios';
 
 interface SimulationParams {
@@ -112,21 +114,6 @@ const DiversitySimulator: React.FC = () => {
     setParams(preset);
   };
 
-  const exportData = () => {
-    const data = {
-      parameters: params,
-      communities: communities,
-      timestamp: new Date().toISOString(),
-    };
-    
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'diversity_simulation.json';
-    a.click();
-    URL.revokeObjectURL(url);
-  };
 
   return (
     <TooltipProvider>
@@ -176,11 +163,6 @@ const DiversitySimulator: React.FC = () => {
                     </div>
                   </DialogContent>
                 </Dialog>
-                
-                <Button onClick={exportData} variant="outline" size="sm">
-                  <Download className="w-4 h-4 mr-2" />
-                  Export
-                </Button>
               </div>
             </div>
           </div>
@@ -327,7 +309,9 @@ const DiversitySimulator: React.FC = () => {
 
             {/* Main Visualization Area */}
             <div className="lg:col-span-3 space-y-6">
-              <DiversityMetrics communities={communities} />
+              <ComprehensiveDiversityMetrics communities={communities} />
+              <DiversityCharts communities={communities} />
+              <PCAVisualization communities={communities} />
               <CommunityVisualization communities={communities} />
             </div>
           </div>
