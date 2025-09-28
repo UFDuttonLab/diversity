@@ -201,17 +201,22 @@ const DiversityCharts: React.FC<DiversityChartsProps> = ({ communities }) => {
             abundance: { label: 'Abundance', color: colors.primary }
           }}>
             <ResponsiveContainer width="100%" height={300}>
-              <ScatterChart>
+              <ScatterChart
+                margin={{ top: 20, right: 20, bottom: 60, left: 60 }}
+              >
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis 
+                  type="number"
                   dataKey="rank" 
                   label={{ value: 'Species Rank', position: 'insideBottom', offset: -5 }}
                   domain={['dataMin', 'dataMax']}
                 />
                 <YAxis 
+                  type="number"
+                  dataKey="abundance"
                   scale="log"
                   domain={['dataMin', 'dataMax']}
-                  label={{ value: 'Log Abundance', angle: -90, position: 'insideLeft' }}
+                  label={{ value: 'Abundance (log scale)', angle: -90, position: 'insideLeft' }}
                 />
                 <ChartTooltip 
                   content={({ active, payload }) => {
