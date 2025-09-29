@@ -89,21 +89,66 @@ const PCAVisualization: React.FC<PCAVisualizationProps> = ({ communities }) => {
       row.map((val, j) => -0.5 * (val - rowMeans[i] - colMeans[j] + mean))
     );
     
-    // Simple eigenvalue decomposition approximation
-    // For a real implementation, you'd use proper matrix decomposition
-    // Here we'll create a simplified 2D projection with proper variance calculation
+    // Simplified SVD-based PCoA implementation
+    // Perform eigenvalue decomposition on the centered matrix
     
+    // Calculate covariance matrix of centered dissimilarity matrix
+    const covMatrix = centeredMatrix.map((row, i) => 
+      centeredMatrix[0].map((_, j) => {
+        let sum = 0;
+        for (let k = 0; k < n; k++) {
+          sum += centeredMatrix[k][i] * centeredMatrix[k][j];
+        }
+        return sum / (n - 1);
+      })
+    );
+    
+    // Simple power iteration method to find first two eigenvectors
+    // Initialize random vectors
+    let v1 = Array(n).fill(0).map(() => Math.random() - 0.5);
+    let v2 = Array(n).fill(0).map(() => Math.random() - 0.5);
+    
+    // Normalize
+    const normalize = (vec: number[]) => {
+      const mag = Math.sqrt(vec.reduce((sum, v) => sum + v * v, 0));
+      return mag > 0 ? vec.map(v => v / mag) : vec;
+    };
+    
+    // Power iteration for first eigenvector
+    for (let iter = 0; iter < 50; iter++) {
+      const newV1 = covMatrix.map(row => 
+        row.reduce((sum, val, j) => sum + val * v1[j], 0)
+      );
+      v1 = normalize(newV1);
+    }
+    
+    // Calculate first eigenvalue
+    const eigenval1 = v1.reduce((sum, val, i) => 
+      sum + val * covMatrix[i].reduce((s2, cval, j) => s2 + cval * v1[j], 0), 0
+    );
+    
+    // Deflate matrix for second eigenvector
+    const deflatedMatrix = covMatrix.map((row, i) => 
+      row.map((val, j) => val - eigenval1 * v1[i] * v1[j])
+    );
+    
+    // Power iteration for second eigenvector
+    for (let iter = 0; iter < 50; iter++) {
+      const newV2 = deflatedMatrix.map(row => 
+        row.reduce((sum, val, j) => sum + val * v2[j], 0)
+      );
+      v2 = normalize(newV2);
+    }
+    
+    // Calculate second eigenvalue
+    const eigenval2 = v2.reduce((sum, val, i) => 
+      sum + val * deflatedMatrix[i].reduce((s2, cval, j) => s2 + cval * v2[j], 0), 0
+    );
+    
+    // Project communities onto principal coordinates
     const pcaData = communities.map((community, i) => {
-      // Project onto first two principal coordinates
-      // This is a simplified projection for demonstration
-      let pc1 = 0, pc2 = 0;
-      
-      for (let j = 0; j < n; j++) {
-        const weight1 = Math.cos(2 * Math.PI * j / n) / Math.sqrt(n);
-        const weight2 = Math.sin(2 * Math.PI * j / n) / Math.sqrt(n);
-        pc1 += centeredMatrix[i][j] * weight1;
-        pc2 += centeredMatrix[i][j] * weight2;
-      }
+      const pc1 = centeredMatrix[i].reduce((sum, val, j) => sum + val * v1[j], 0) * Math.sqrt(Math.abs(eigenval1));
+      const pc2 = centeredMatrix[i].reduce((sum, val, j) => sum + val * v2[j], 0) * Math.sqrt(Math.abs(eigenval2));
       
       return {
         community: community.id,
@@ -115,18 +160,12 @@ const PCAVisualization: React.FC<PCAVisualizationProps> = ({ communities }) => {
       };
     });
     
-    // Calculate explained variance properly (should sum to less than 100%)
-    const pc1Values = pcaData.map(p => p.PC1);
-    const pc2Values = pcaData.map(p => p.PC2);
-    
-    const pc1Variance = pc1Values.reduce((sum, val) => sum + val * val, 0) / pc1Values.length;
-    const pc2Variance = pc2Values.reduce((sum, val) => sum + val * val, 0) / pc2Values.length;
-    const totalVariance = pc1Variance + pc2Variance;
-    
-    const explainedVariance = totalVariance > 0 ? [
-      (pc1Variance / totalVariance) * 100,
-      (pc2Variance / totalVariance) * 100
-    ] : [60, 25]; // Fallback realistic values
+    // Calculate explained variance from eigenvalues
+    const totalEigenvalues = Math.abs(eigenval1) + Math.abs(eigenval2);
+    const explainedVariance = totalEigenvalues > 0 ? [
+      (Math.abs(eigenval1) / totalEigenvalues) * 100,
+      (Math.abs(eigenval2) / totalEigenvalues) * 100
+    ] : [50, 30]; // Fallback values
     
     return {
       pcaData,
