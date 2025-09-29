@@ -260,9 +260,31 @@ const DiversityCharts: React.FC<DiversityChartsProps> = ({ communities }) => {
           </ChartContainer>
           
           <div className="mt-4 p-3 bg-educational-warning rounded-lg">
-            <div className="text-xs space-y-1">
-              <p><strong>Interpretation:</strong> Steep slopes = high dominance (few common species). Gentle slopes = high evenness (species abundances more similar).</p>
-              <p><strong>Pattern Recognition:</strong> Different communities show as different colored point clouds. Parallel curves suggest similar community organization despite different species.</p>
+            <div className="text-xs space-y-3">
+              <div>
+                <p className="font-semibold mb-1">What Are Rank-Abundance Curves?</p>
+                <p>These curves show how evenly species abundances are distributed in each community. Species are ranked from most to least abundant (rank 1 = most common) and plotted against their abundance on a log scale.</p>
+              </div>
+              
+              <div>
+                <p className="font-semibold mb-1">Reading the Patterns:</p>
+                <p><strong>Steep slopes:</strong> High dominance - a few species make up most individuals (uneven community)</p>
+                <p><strong>Gentle slopes:</strong> High evenness - species have more similar abundances (balanced community)</p>
+                <p><strong>Long tails:</strong> Many rare species present (high richness but with rare species)</p>
+                <p><strong>Short curves:</strong> Few species total (low richness)</p>
+              </div>
+              
+              <div>
+                <p className="font-semibold mb-1">Ecological Meaning:</p>
+                <p><strong>Parallel curves:</strong> Communities have similar organization patterns despite different species</p>
+                <p><strong>Convergent curves:</strong> Communities become more similar in rare species</p>
+                <p><strong>Divergent curves:</strong> Communities differ in both dominant and rare species patterns</p>
+              </div>
+              
+              <div>
+                <p className="font-semibold mb-1">Real-World Context:</p>
+                <p>Disturbed habitats often show steep curves (few dominant species). Mature, stable communities typically show gentler slopes (more even distribution). Harsh environments may have short curves (few species can survive).</p>
+              </div>
             </div>
           </div>
         </CardContent>
