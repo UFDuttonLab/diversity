@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, ResponsiveContainer, ReferenceLine } from 'recharts';
+import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, ResponsiveContainer, ReferenceLine, Cell } from 'recharts';
 import { ChartContainer, ChartTooltip } from '@/components/ui/chart';
 import { Badge } from '@/components/ui/badge';
 
@@ -508,13 +508,14 @@ const NMDSVisualization: React.FC<NMDSVisualizationProps> = ({ communities }) =>
                         return null;
                       }}
                     />
-                    {nmdsData.map((point, index) => (
-                      <Scatter
-                        key={point.community}
-                        data={[point]}
-                        fill={colors[index % colors.length]}
-                      />
-                    ))}
+                    <Scatter data={nmdsData}>
+                      {nmdsData.map((point, index) => (
+                        <Cell 
+                          key={point.community}
+                          fill={colors[index % colors.length]}
+                        />
+                      ))}
+                    </Scatter>
                   </ScatterChart>
                 </ResponsiveContainer>
               </ChartContainer>
