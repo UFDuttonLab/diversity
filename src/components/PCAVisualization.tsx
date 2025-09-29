@@ -59,8 +59,7 @@ const PCAVisualization: React.FC<PCAVisualizationProps> = ({ communities }) => {
       brayCurtis.push(row);
     }
     
-    // Simple PCoA (Principal Coordinates Analysis) implementation
-    // For demonstration, we'll use the first two eigenvectors approximation
+    // Robust PCoA (Principal Coordinates Analysis) implementation
     const n = communities.length;
     
     if (n < 3) {
@@ -77,103 +76,129 @@ const PCAVisualization: React.FC<PCAVisualizationProps> = ({ communities }) => {
         pcaStats: { explainedVariance: [50, 30], totalVariance: 80 }
       };
     }
+
+    // Console log to debug the Bray-Curtis matrix
+    console.log('Bray-Curtis matrix variation:', {
+      min: Math.min(...brayCurtis.flat()),
+      max: Math.max(...brayCurtis.flat()),
+      mean: brayCurtis.flat().reduce((sum, val) => sum + val, 0) / (n * n)
+    });
     
-    // Center the distance matrix (double centering)
-    const mean = brayCurtis.flat().reduce((sum, val) => sum + val, 0) / (n * n);
-    const rowMeans = brayCurtis.map(row => row.reduce((sum, val) => sum + val, 0) / n);
+    // Double centering for PCoA (convert squared distances to inner products)
+    const squaredDistances = brayCurtis.map(row => row.map(val => val * val));
+    
+    // Calculate row, column and grand means of squared distances
+    const grandMean = squaredDistances.flat().reduce((sum, val) => sum + val, 0) / (n * n);
+    const rowMeans = squaredDistances.map(row => row.reduce((sum, val) => sum + val, 0) / n);
     const colMeans = Array(n).fill(0).map((_, j) => 
-      brayCurtis.reduce((sum, row) => sum + row[j], 0) / n
+      squaredDistances.reduce((sum, row) => sum + row[j], 0) / n
     );
     
-    const centeredMatrix = brayCurtis.map((row, i) => 
-      row.map((val, j) => -0.5 * (val - rowMeans[i] - colMeans[j] + mean))
+    // Double center the matrix: G = -0.5 * (D² - row means - col means + grand mean)
+    const G = squaredDistances.map((row, i) => 
+      row.map((val, j) => -0.5 * (val - rowMeans[i] - colMeans[j] + grandMean))
     );
+
+    // Simplified eigendecomposition using a more stable approach
+    // We'll use QR algorithm approximation for educational purposes
     
-    // Correct PCoA implementation using eigendecomposition on centered matrix
+    // Start with identity-like vectors for stability
+    const eigenvectors = [];
+    const eigenvalues = [];
     
-    // Normalize function
-    const normalize = (vec: number[]) => {
-      const mag = Math.sqrt(vec.reduce((sum, v) => sum + v * v, 0));
-      return mag > 0 ? vec.map(v => v / mag) : vec;
-    };
-    
-    // Initialize random eigenvectors
-    let v1 = Array(n).fill(0).map(() => Math.random() - 0.5);
-    let v2 = Array(n).fill(0).map(() => Math.random() - 0.5);
-    
-    // Power iteration for first eigenvector on centered matrix
-    for (let iter = 0; iter < 100; iter++) {
-      const newV1 = Array(n).fill(0);
-      for (let i = 0; i < n; i++) {
-        for (let j = 0; j < n; j++) {
-          newV1[i] += centeredMatrix[i][j] * v1[j];
+    // Create initial orthogonal vectors
+    for (let k = 0; k < Math.min(2, n); k++) {
+      let v = Array(n).fill(0);
+      v[k] = 1;
+      
+      // Apply Gram-Schmidt orthogonalization against previous vectors
+      for (let prev = 0; prev < eigenvectors.length; prev++) {
+        const dot = v.reduce((sum, val, i) => sum + val * eigenvectors[prev][i], 0);
+        v = v.map((val, i) => val - dot * eigenvectors[prev][i]);
+      }
+      
+      // Normalize
+      const norm = Math.sqrt(v.reduce((sum, val) => sum + val * val, 0));
+      if (norm > 1e-10) {
+        v = v.map(val => val / norm);
+      }
+      
+      // Power iteration to refine eigenvector
+      for (let iter = 0; iter < 200; iter++) {
+        const newV = Array(n).fill(0);
+        
+        // Matrix-vector multiplication: newV = G * v
+        for (let i = 0; i < n; i++) {
+          for (let j = 0; j < n; j++) {
+            newV[i] += G[i][j] * v[j];
+          }
+        }
+        
+        // Re-orthogonalize against all previous eigenvectors
+        for (let prev = 0; prev < eigenvectors.length; prev++) {
+          const dot = newV.reduce((sum, val, i) => sum + val * eigenvectors[prev][i], 0);
+          for (let i = 0; i < n; i++) {
+            newV[i] -= dot * eigenvectors[prev][i];
+          }
+        }
+        
+        // Normalize
+        const newNorm = Math.sqrt(newV.reduce((sum, val) => sum + val * val, 0));
+        if (newNorm > 1e-10) {
+          v = newV.map(val => val / newNorm);
+        }
+        
+        // Check convergence
+        if (iter > 0) {
+          const diff = v.reduce((sum, val, i) => sum + Math.abs(val - (newV[i] / newNorm)), 0);
+          if (diff < 1e-8) break;
         }
       }
-      v1 = normalize(newV1);
-    }
-    
-    // Calculate first eigenvalue
-    let eigenval1 = 0;
-    for (let i = 0; i < n; i++) {
-      let temp = 0;
-      for (let j = 0; j < n; j++) {
-        temp += centeredMatrix[i][j] * v1[j];
+      
+      // Calculate eigenvalue: λ = v^T * G * v
+      let eigenvalue = 0;
+      for (let i = 0; i < n; i++) {
+        let temp = 0;
+        for (let j = 0; j < n; j++) {
+          temp += G[i][j] * v[j];
+        }
+        eigenvalue += v[i] * temp;
       }
-      eigenval1 += v1[i] * temp;
-    }
-    
-    // Deflate matrix for second eigenvector
-    const deflatedMatrix = centeredMatrix.map((row, i) => 
-      row.map((val, j) => val - eigenval1 * v1[i] * v1[j])
-    );
-    
-    // Orthogonalize v2 with respect to v1
-    const makeOrthogonal = (vec: number[], basis: number[]) => {
-      const dot = vec.reduce((sum, val, i) => sum + val * basis[i], 0);
-      return vec.map((val, i) => val - dot * basis[i]);
-    };
-    
-    // Power iteration for second eigenvector
-    for (let iter = 0; iter < 100; iter++) {
-      const newV2 = Array(n).fill(0);
+      
+      eigenvectors.push(v);
+      eigenvalues.push(eigenvalue);
+      
+      // Deflate G for next eigenvector
       for (let i = 0; i < n; i++) {
         for (let j = 0; j < n; j++) {
-          newV2[i] += deflatedMatrix[i][j] * v2[j];
+          G[i][j] -= eigenvalue * v[i] * v[j];
         }
       }
-      v2 = normalize(makeOrthogonal(newV2, v1));
     }
+
+    console.log('Eigenvalues:', eigenvalues);
     
-    // Calculate second eigenvalue
-    let eigenval2 = 0;
-    for (let i = 0; i < n; i++) {
-      let temp = 0;
-      for (let j = 0; j < n; j++) {
-        temp += deflatedMatrix[i][j] * v2[j];
-      }
-      eigenval2 += v2[i] * temp;
-    }
-    
-    // Principal coordinates are eigenvector components scaled by sqrt(eigenvalue)
+    // Create PCoA coordinates (only use positive eigenvalues)
     const pcaData = communities.map((community, i) => {
-      const pc1 = v1[i] * Math.sqrt(Math.max(0, eigenval1));
-      const pc2 = v2[i] * Math.sqrt(Math.max(0, eigenval2));
+      const pc1 = eigenvalues[0] > 0 ? eigenvectors[0][i] * Math.sqrt(eigenvalues[0]) : 0;
+      const pc2 = eigenvalues[1] > 0 ? eigenvectors[1][i] * Math.sqrt(eigenvalues[1]) : 0;
       
       return {
         community: community.id,
         PC1: pc1,
         PC2: pc2,
         richness: community.species.length,
-        abundance: community.abundance.reduce((sum, a) => sum + a, 0),
-        brayCurtisSum: brayCurtis[i].reduce((sum, val) => sum + val, 0)
+        abundance: community.abundance.reduce((sum, a) => sum + a, 0)
       };
     });
     
-    // Calculate explained variance from eigenvalues
-    const totalEigenvalues = Math.abs(eigenval1) + Math.abs(eigenval2);
-    const explainedVariance = totalEigenvalues > 0 ? [
-      (Math.abs(eigenval1) / totalEigenvalues) * 100,
-      (Math.abs(eigenval2) / totalEigenvalues) * 100
+    // Calculate explained variance (only from positive eigenvalues)
+    const positiveEigenvalues = eigenvalues.filter(val => val > 0);
+    const totalPositiveVariance = positiveEigenvalues.reduce((sum, val) => sum + val, 0);
+    
+    const explainedVariance = totalPositiveVariance > 0 ? [
+      positiveEigenvalues[0] ? (positiveEigenvalues[0] / totalPositiveVariance) * 100 : 0,
+      positiveEigenvalues[1] ? (positiveEigenvalues[1] / totalPositiveVariance) * 100 : 0
     ] : [50, 30]; // Fallback values
     
     return {
@@ -323,24 +348,58 @@ const PCAVisualization: React.FC<PCAVisualizationProps> = ({ communities }) => {
           </p>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${communities.length}, 1fr)` }}>
-            {brayCurtisMatrix.map((row, i) =>
-              row.map((value, j) => (
-                <div
-                  key={`${i}-${j}`}
-                  className="aspect-square flex items-center justify-center text-xs font-medium rounded border"
-                  style={{
-                    backgroundColor: `hsl(${240 - value * 120}, 70%, ${90 - value * 40}%)`,
-                    color: value > 0.5 ? 'white' : 'black'
-                  }}
-                  title={`Community ${i + 1} vs Community ${j + 1}: ${value.toFixed(3)}`}
+          <div className="relative">
+            {/* Matrix with proper headers */}
+            <div 
+              className="grid gap-1 ml-8 mt-8" 
+              style={{ gridTemplateColumns: `repeat(${communities.length}, 1fr)` }}
+            >
+              {/* Column headers */}
+              {Array.from({ length: communities.length }, (_, j) => (
+                <div 
+                  key={`col-${j}`} 
+                  className="absolute text-xs font-medium text-center -translate-y-6"
+                  style={{ gridColumn: j + 1, top: 0 }}
                 >
-                  {i === 0 && <div className="absolute -top-6 text-xs">{j + 1}</div>}
-                  {j === 0 && <div className="absolute -left-6 text-xs">{i + 1}</div>}
-                  {value.toFixed(2)}
+                  C{j + 1}
                 </div>
-              ))
-            )}
+              ))}
+              
+              {/* Matrix cells with row headers */}
+              {brayCurtisMatrix.map((row, i) => (
+                <React.Fragment key={`row-${i}`}>
+                  {/* Row header */}
+                  <div 
+                    className="absolute text-xs font-medium flex items-center -translate-x-6"
+                    style={{ 
+                      gridRow: i + 1, 
+                      gridColumn: 1,
+                      left: 0,
+                      height: '100%'
+                    }}
+                  >
+                    C{i + 1}
+                  </div>
+                  
+                  {/* Matrix values */}
+                  {row.map((value, j) => (
+                    <div
+                      key={`${i}-${j}`}
+                      className="aspect-square flex items-center justify-center text-xs font-medium rounded border transition-colors hover:ring-2 hover:ring-primary/50"
+                      style={{
+                        backgroundColor: `hsl(${240 - value * 120}, 70%, ${90 - value * 40}%)`,
+                        color: value > 0.5 ? 'white' : 'hsl(var(--foreground))',
+                        gridColumn: j + 1,
+                        gridRow: i + 1
+                      }}
+                      title={`Community ${i + 1} vs Community ${j + 1}: ${value.toFixed(3)}`}
+                    >
+                      {value.toFixed(2)}
+                    </div>
+                  ))}
+                </React.Fragment>
+              ))}
+            </div>
           </div>
           <div className="mt-4 flex items-center gap-4 text-xs">
             <span>Dissimilarity:</span>
