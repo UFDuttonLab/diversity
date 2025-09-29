@@ -201,79 +201,97 @@ const ComprehensiveDiversityMetrics: React.FC<ComprehensiveDiversityMetricsProps
             </TabsList>
             
             <TabsContent value="alpha" className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <MetricCard
-                  title="Species Richness (S)"
-                  value={alphaMetrics.reduce((sum, m) => sum + m.richness, 0) / alphaMetrics.length}
-                  formula="S = number of species"
-                  interpretation="Basic count of species present"
-                  whenToUse="When you only need to know how many different species are present. Best for simple comparisons between sites."
-                  relatedMetrics="Margalef and Menhinick indices adjust richness for sample size. Fisher's alpha provides sample-size independent richness."
-                />
-                <MetricCard
-                  title="Shannon Index (H')"
-                  value={alphaMetrics.reduce((sum, m) => sum + m.shannon, 0) / alphaMetrics.length}
-                  formula="H' = -Σ(pi × ln(pi))"
-                  interpretation="Accounts for richness and evenness"
-                  whenToUse="When you want to consider both the number of species AND how evenly distributed they are. Best general-purpose diversity index."
-                  relatedMetrics="Higher values than Simpson index. Related to Pielou's evenness (J' = H'/ln(S)). More sensitive to rare species than Simpson."
-                />
-                <MetricCard
-                  title="Simpson Diversity (1-D)"
-                  value={alphaMetrics.reduce((sum, m) => sum + m.simpsonDiversity, 0) / alphaMetrics.length}
-                  formula="1-D = 1 - Σ(pi²)"
-                  interpretation="Probability two individuals differ"
-                  whenToUse="When you want to emphasize the contribution of common species. Less sensitive to rare species than Shannon index."
-                  relatedMetrics="Inverse Simpson (1/D) gives effective number of species. More weight to dominant species than Shannon index."
-                />
-                <MetricCard
-                  title="Inverse Simpson (1/D)"
-                  value={alphaMetrics.reduce((sum, m) => sum + m.inverseSimpson, 0) / alphaMetrics.length}
-                  formula="1/D = 1/Σ(pi²)"
-                  interpretation="Effective number of species"
-                  whenToUse="When you want to know how many equally-abundant species would give the same diversity. Easier to interpret than Simpson diversity."
-                  relatedMetrics="Direct transformation of Simpson index. Always ≥ species richness. Closely related to Hill numbers (N1)."
-                />
-                <MetricCard
-                  title="Pielou's Evenness (J')"
-                  value={alphaMetrics.reduce((sum, m) => sum + m.pielou, 0) / alphaMetrics.length}
-                  formula="J' = H'/ln(S)"
-                  interpretation="How evenly individuals are distributed"
-                  whenToUse="When you want to separate the effects of richness from evenness. Values range 0-1, making comparisons easy."
-                  relatedMetrics="Normalizes Shannon index by maximum possible value. Inversely related to Berger-Parker dominance. Independent of richness."
-                />
-                <MetricCard
-                  title="Berger-Parker Dominance"
-                  value={alphaMetrics.reduce((sum, m) => sum + m.bergerParker, 0) / alphaMetrics.length}
-                  formula="BP = Nmax/N"
-                  interpretation="Proportion of most abundant species"
-                  whenToUse="When you want a simple measure of how much one species dominates the community. High values indicate low evenness."
-                  relatedMetrics="Inversely related to evenness measures. Simpler than Simpson-based indices. Range 1/S to 1."
-                />
-                <MetricCard
-                  title="Fisher's Alpha"
-                  value={alphaMetrics.reduce((sum, m) => sum + m.fishersAlpha, 0) / alphaMetrics.length}
-                  formula="α ≈ (S-1)/ln(N)"
-                  interpretation="Species diversity independent of sample size"
-                  whenToUse="When comparing communities with very different sample sizes. Assumes log-series species abundance distribution."
-                  relatedMetrics="Similar to Margalef but based on different assumptions. Less affected by sample size than simple richness."
-                />
-                <MetricCard
-                  title="Margalef's Richness"
-                  value={alphaMetrics.reduce((sum, m) => sum + m.margalef, 0) / alphaMetrics.length}
-                  formula="R = (S-1)/ln(N)"
-                  interpretation="Species richness adjusted for sample size"
-                  whenToUse="When you need to compare richness between samples of different sizes. Assumes constant sampling effort."
-                  relatedMetrics="Similar formula to Fisher's alpha but different theoretical basis. Both correct for sample size effects."
-                />
-                <MetricCard
-                  title="Menhinick's Richness"
-                  value={alphaMetrics.reduce((sum, m) => sum + m.menhinick, 0) / alphaMetrics.length}
-                  formula="R = S/√N"
-                  interpretation="Species richness per square root of individuals"
-                  whenToUse="Alternative to Margalef for sample-size correction. Better when species accumulation follows square-root pattern."
-                  relatedMetrics="Different sample-size correction than Margalef or Fisher's alpha. Generally gives lower values than Margalef."
-                />
+              <div className="mb-4 p-4 bg-educational-info rounded-lg">
+                <h4 className="font-semibold text-sm mb-2">Individual Community Alpha Diversity</h4>
+                <p className="text-xs text-muted-foreground">
+                  Alpha diversity measures within-community diversity. Each community has its own values - averaging doesn't make ecological sense.
+                </p>
+              </div>
+              
+              <div className="space-y-6">
+                {/* Species Richness */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-medium text-sm">Species Richness (S)</h4>
+                    <Badge variant="outline">Range: {Math.min(...alphaMetrics.map(m => m.richness))} - {Math.max(...alphaMetrics.map(m => m.richness))}</Badge>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                    {alphaMetrics.map((metrics, idx) => (
+                      <div key={idx} className="p-2 border rounded text-center">
+                        <div className="text-xs text-muted-foreground">Community {communities[idx].id}</div>
+                        <div className="font-semibold">{metrics.richness}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="text-xs text-muted-foreground space-y-1">
+                    <div><strong>Formula:</strong> S = number of species</div>
+                    <div><strong>When to use:</strong> When you only need to know how many different species are present. Best for simple comparisons between sites.</div>
+                    <div><strong>Related metrics:</strong> Margalef and Menhinick indices adjust richness for sample size. Fisher's alpha provides sample-size independent richness.</div>
+                  </div>
+                </div>
+
+                {/* Shannon Index */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-medium text-sm">Shannon Index (H')</h4>
+                    <Badge variant="outline">Range: {Math.min(...alphaMetrics.map(m => m.shannon)).toFixed(3)} - {Math.max(...alphaMetrics.map(m => m.shannon)).toFixed(3)}</Badge>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                    {alphaMetrics.map((metrics, idx) => (
+                      <div key={idx} className="p-2 border rounded text-center">
+                        <div className="text-xs text-muted-foreground">Community {communities[idx].id}</div>
+                        <div className="font-semibold">{metrics.shannon.toFixed(3)}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="text-xs text-muted-foreground space-y-1">
+                    <div><strong>Formula:</strong> H' = -Σ(pi × ln(pi))</div>
+                    <div><strong>When to use:</strong> When you want to consider both the number of species AND how evenly distributed they are. Best general-purpose diversity index.</div>
+                    <div><strong>Related metrics:</strong> Higher values than Simpson index. Related to Pielou's evenness (J' = H'/ln(S)). More sensitive to rare species than Simpson.</div>
+                  </div>
+                </div>
+
+                {/* Simpson Diversity */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-medium text-sm">Simpson Diversity (1-D)</h4>
+                    <Badge variant="outline">Range: {Math.min(...alphaMetrics.map(m => m.simpsonDiversity)).toFixed(3)} - {Math.max(...alphaMetrics.map(m => m.simpsonDiversity)).toFixed(3)}</Badge>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                    {alphaMetrics.map((metrics, idx) => (
+                      <div key={idx} className="p-2 border rounded text-center">
+                        <div className="text-xs text-muted-foreground">Community {communities[idx].id}</div>
+                        <div className="font-semibold">{metrics.simpsonDiversity.toFixed(3)}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="text-xs text-muted-foreground space-y-1">
+                    <div><strong>Formula:</strong> 1-D = 1 - Σ(pi²)</div>
+                    <div><strong>When to use:</strong> When you want to emphasize the contribution of common species. Less sensitive to rare species than Shannon index.</div>
+                    <div><strong>Related metrics:</strong> Inverse Simpson (1/D) gives effective number of species. More weight to dominant species than Shannon index.</div>
+                  </div>
+                </div>
+
+                {/* Pielou's Evenness */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-medium text-sm">Pielou's Evenness (J')</h4>
+                    <Badge variant="outline">Range: {Math.min(...alphaMetrics.map(m => m.pielou)).toFixed(3)} - {Math.max(...alphaMetrics.map(m => m.pielou)).toFixed(3)}</Badge>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                    {alphaMetrics.map((metrics, idx) => (
+                      <div key={idx} className="p-2 border rounded text-center">
+                        <div className="text-xs text-muted-foreground">Community {communities[idx].id}</div>
+                        <div className="font-semibold">{metrics.pielou.toFixed(3)}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="text-xs text-muted-foreground space-y-1">
+                    <div><strong>Formula:</strong> J' = H'/ln(S)</div>
+                    <div><strong>When to use:</strong> When you want to separate the effects of richness from evenness. Values range 0-1, making comparisons easy.</div>
+                    <div><strong>Related metrics:</strong> Normalizes Shannon index by maximum possible value. Inversely related to Berger-Parker dominance. Independent of richness.</div>
+                  </div>
+                </div>
               </div>
             </TabsContent>
             

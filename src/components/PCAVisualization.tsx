@@ -198,10 +198,6 @@ const PCAVisualization: React.FC<PCAVisualizationProps> = ({ communities }) => {
                         return null;
                       }}
                     />
-                    <Scatter 
-                      data={pcaData}
-                      fill="hsl(var(--primary))"
-                    />
                     {pcaData.map((point, index) => (
                       <Scatter
                         key={point.community}
