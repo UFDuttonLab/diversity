@@ -116,9 +116,7 @@ const CommunityVisualization: React.FC<CommunityVisualizationProps> = ({ communi
           </div>
           
           <div className="mt-6 p-4 bg-educational-success rounded-lg">
-            <h5 className="font-semibold text-sm mb-2">Why This Visualization Matters</h5>
             <div className="text-xs space-y-1">
-              <p><strong>Design Choice:</strong> Stacked bars show species composition intuitively - bar width = abundance, colors = species identity.</p>
               <p><strong>Interpretation:</strong> Wide bars = dominant species, many colors = high richness, similar-width bars = high evenness.</p>
               <p><strong>Beta Diversity:</strong> Compare colors across communities - different colors in different communities = species turnover (beta diversity).</p>
               <p><strong>Quick Assessment:</strong> This visualization lets you instantly see which communities share species and which have unique compositions.</p>

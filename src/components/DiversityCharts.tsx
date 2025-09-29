@@ -153,9 +153,7 @@ const DiversityCharts: React.FC<DiversityChartsProps> = ({ communities }) => {
           </ChartContainer>
           
           <div className="mt-4 p-3 bg-educational-info rounded-lg">
-            <h5 className="font-semibold text-sm mb-2">Why This Visualization Matters</h5>
             <div className="text-xs space-y-1">
-              <p><strong>Design Choice:</strong> Bar chart allows direct comparison of three key diversity measures across communities.</p>
               <p><strong>Interpretation:</strong> Different metrics can rank communities differently - richness only counts species, Shannon weighs rare species more, Simpson emphasizes dominant species.</p>
               <p><strong>Pattern Recognition:</strong> Look for communities where metrics agree vs. disagree - disagreement reveals important ecological differences in evenness.</p>
             </div>
@@ -199,9 +197,7 @@ const DiversityCharts: React.FC<DiversityChartsProps> = ({ communities }) => {
           </ChartContainer>
           
           <div className="mt-4 p-3 bg-educational-success rounded-lg">
-            <h5 className="font-semibold text-sm mb-2">Why This Visualization Matters</h5>
             <div className="text-xs space-y-1">
-              <p><strong>Design Choice:</strong> Line chart shows how diversity accumulates as you sample more communities - the essence of beta diversity.</p>
               <p><strong>Interpretation:</strong> Steep cumulative curve = high beta diversity (communities are different). Flat curve = low beta diversity (communities are similar).</p>
               <p><strong>Pattern Recognition:</strong> Compare the gap between cumulative and local species - larger gaps indicate more species turnover between communities.</p>
             </div>
@@ -264,9 +260,7 @@ const DiversityCharts: React.FC<DiversityChartsProps> = ({ communities }) => {
           </ChartContainer>
           
           <div className="mt-4 p-3 bg-educational-warning rounded-lg">
-            <h5 className="font-semibold text-sm mb-2">Why This Visualization Matters</h5>
             <div className="text-xs space-y-1">
-              <p><strong>Design Choice:</strong> Log scale on Y-axis linearizes exponential species abundance distributions, revealing underlying community structure patterns.</p>
               <p><strong>Interpretation:</strong> Steep slopes = high dominance (few common species). Gentle slopes = high evenness (species abundances more similar).</p>
               <p><strong>Pattern Recognition:</strong> Different communities show as different colored point clouds. Parallel curves suggest similar community organization despite different species.</p>
             </div>
@@ -318,9 +312,7 @@ const DiversityCharts: React.FC<DiversityChartsProps> = ({ communities }) => {
           </ChartContainer>
           
           <div className="mt-4 p-3 bg-educational-success rounded-lg">
-            <h5 className="font-semibold text-sm mb-2">Why This Visualization Matters</h5>
             <div className="text-xs space-y-1">
-              <p><strong>Design Choice:</strong> Scatter plot separates the two components of diversity - how many species (richness) vs. how evenly distributed (evenness).</p>
               <p><strong>Interpretation:</strong> Top-right = high richness + high evenness (ideal). Top-left = high richness but uneven. Bottom-right = few species but very even.</p>
               <p><strong>Pattern Recognition:</strong> Points spread across the plot indicate communities achieve diversity through different mechanisms - some via richness, others via evenness.</p>
             </div>

@@ -257,9 +257,7 @@ const PCAVisualization: React.FC<PCAVisualizationProps> = ({ communities }) => {
           </div>
           
           <div className="mt-4 p-4 bg-educational-success rounded-lg">
-            <h5 className="font-semibold text-sm mb-2">Why This Visualization Matters</h5>
             <div className="text-xs space-y-1">
-              <p><strong>Design Choice:</strong> Scatter plot in 2D space reduces complex community differences to interpretable patterns. Distance = dissimilarity.</p>
               <p><strong>Interpretation:</strong> Communities close together have similar species composition. Communities far apart are compositionally different.</p>
               <p><strong>Axes Meaning:</strong> PC1 and PC2 represent the main gradients of community variation - often environmental or spatial gradients.</p>
               <p><strong>Variance Explained:</strong> Higher percentages mean the 2D plot captures more of the real community differences. Low values suggest complex patterns.</p>
@@ -309,12 +307,10 @@ const PCAVisualization: React.FC<PCAVisualizationProps> = ({ communities }) => {
           </div>
           
           <div className="mt-4 p-4 bg-educational-warning rounded-lg">
-            <h5 className="font-semibold text-sm mb-2">Why This Matrix Visualization Matters</h5>
             <div className="text-xs space-y-1">
-              <p><strong>Design Choice:</strong> Heatmap shows all pairwise community comparisons simultaneously. Color intensity = dissimilarity strength.</p>
               <p><strong>Interpretation:</strong> Dark squares = very different communities, light squares = similar communities. Diagonal is always 0 (community vs itself).</p>
               <p><strong>Pattern Recognition:</strong> Blocks of similar colors reveal groups of similar communities. Random patterns suggest high beta diversity.</p>
-              <p><strong>Quantitative Precision:</strong> Numbers provide exact dissimilarity values for statistical analysis and reporting.</p>
+              <p><strong>Usage:</strong> Numbers provide exact dissimilarity values for statistical analysis and reporting.</p>
             </div>
           </div>
         </CardContent>
