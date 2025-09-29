@@ -12,7 +12,7 @@ import CommunityVisualization from './CommunityVisualization';
 import ComprehensiveDiversityMetrics from './ComprehensiveDiversityMetrics';
 import AlphaComparison from './AlphaComparison';
 import DiversityCharts from './DiversityCharts';
-import PCAVisualization from './PCAVisualization';
+import NMDSVisualization from './NMDSVisualization';
 import PresetScenarios from './PresetScenarios';
 
 interface SimulationParams {
@@ -321,7 +321,7 @@ const DiversitySimulator: React.FC = () => {
               <ComprehensiveDiversityMetrics communities={communities} />
               <AlphaComparison communities={communities} />
               <DiversityCharts communities={communities} />
-              <PCAVisualization communities={communities} />
+              <NMDSVisualization communities={communities} />
               <CommunityVisualization communities={communities} />
             </div>
           </div>
