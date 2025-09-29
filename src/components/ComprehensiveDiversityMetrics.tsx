@@ -417,12 +417,96 @@ const ComprehensiveDiversityMetrics: React.FC<ComprehensiveDiversityMetricsProps
             </TabsContent>
             
             <TabsContent value="gamma" className="space-y-4">
-              <div className="mb-4 p-4 bg-educational-info rounded-lg">
-                <h4 className="font-semibold text-sm mb-2">Gamma Diversity</h4>
-                <p className="text-xs text-muted-foreground">
-                  Gamma diversity measures total diversity across all communities in a region. It includes richness-based (species counts) 
-                  and abundance-based (Shannon, Simpson) metrics that reveal different aspects of regional biodiversity.
-                </p>
+              {/* Educational Overview */}
+              <div className="mb-4 p-4 bg-educational-info rounded-lg space-y-3">
+                <h4 className="font-semibold text-sm mb-2">Understanding Gamma Diversity</h4>
+                <div className="text-xs text-muted-foreground space-y-2">
+                  <p>
+                    <strong>What is gamma diversity?</strong> Gamma (γ) diversity represents the total biodiversity across 
+                    an entire region or landscape. It combines both the diversity within communities (alpha) and the variation 
+                    between communities (beta). Think of it as the "big picture" of biodiversity.
+                  </p>
+                  <p>
+                    <strong>Three perspectives on gamma:</strong>
+                  </p>
+                  <ul className="list-disc list-inside pl-2 space-y-1">
+                    <li><strong>Richness (γ):</strong> Total species count - how many different species exist in the region?</li>
+                    <li><strong>Shannon (H'γ):</strong> Regional diversity weighted by abundance - accounts for common vs rare species</li>
+                    <li><strong>Simpson (Dγ):</strong> Probability-based diversity - emphasizes dominant species</li>
+                  </ul>
+                  <p>
+                    <strong>Why multiple metrics?</strong> Each reveals different ecological patterns. A region might have high 
+                    species richness but low Shannon diversity if most species are very rare, or vice versa if abundances are even.
+                  </p>
+                </div>
+              </div>
+
+              {/* Comparing Regions Guide */}
+              <div className="mb-4 p-4 border-2 border-primary/20 rounded-lg space-y-3">
+                <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
+                  <Info className="h-4 w-4" />
+                  How to Compare Regions Using Different Partitioning Methods
+                </h4>
+                <div className="text-xs space-y-3">
+                  <div className="p-3 bg-background rounded space-y-2">
+                    <p className="font-semibold">The Challenge:</p>
+                    <p className="text-muted-foreground">
+                      Some diversity metrics partition additively (α + β = γ) while others partition multiplicatively (α × β = γ). 
+                      How do you compare Region A's additive partition to Region B's multiplicative partition?
+                    </p>
+                  </div>
+
+                  <div className="p-3 bg-background rounded space-y-2">
+                    <p className="font-semibold">The Solution: Use Consistent Partitioning</p>
+                    <div className="text-muted-foreground space-y-2">
+                      <p><strong>1. For Richness:</strong> Use either approach consistently</p>
+                      <ul className="list-disc list-inside pl-3 space-y-1">
+                        <li><strong>Multiplicative (Whittaker's β = γ/α̅):</strong> "Region has β times more diversity than average community"</li>
+                        <li><strong>Additive (β = γ - α̅):</strong> "β additional species from community turnover"</li>
+                      </ul>
+                      
+                      <p><strong>2. For Shannon:</strong> Always use additive partitioning</p>
+                      <ul className="list-disc list-inside pl-3 space-y-1">
+                        <li>H'γ = H'α + βH' is the mathematically correct form</li>
+                        <li>βH' represents information gained from comparing communities</li>
+                        <li>Compare βH' values directly between regions</li>
+                      </ul>
+                      
+                      <p><strong>3. For Simpson:</strong> Use multiplicative with effective numbers</p>
+                      <ul className="list-disc list-inside pl-3 space-y-1">
+                        <li>Convert to effective numbers: ᴰD = 1/Σ(pi²)</li>
+                        <li>Then: ᴰDγ = ᴰDα × βD</li>
+                        <li>βD = "effective number of distinct communities"</li>
+                        <li>Compare βD values between regions</li>
+                      </ul>
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-background rounded space-y-2">
+                    <p className="font-semibold">Practical Comparison Example:</p>
+                    <div className="text-muted-foreground space-y-1">
+                      <p><strong>Region A:</strong> γ=50, α̅=20, βw=2.5 (multiplicative)</p>
+                      <p><strong>Region B:</strong> γ=60, α̅=15, βa=45 (additive)</p>
+                      <p className="pt-1 border-t border-muted/20"><strong>To compare fairly:</strong></p>
+                      <ul className="list-disc list-inside pl-3">
+                        <li>Convert Region A: βa = 50-20 = 30 species from turnover</li>
+                        <li>Convert Region B: βw = 60/15 = 4.0 times more diverse</li>
+                        <li>Now compare: Region B has higher turnover (45 vs 30 species OR 4.0 vs 2.5×)</li>
+                      </ul>
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-primary/10 rounded space-y-2">
+                    <p className="font-semibold">Golden Rule for Regional Comparisons:</p>
+                    <ul className="list-disc list-inside pl-3 space-y-1 text-muted-foreground">
+                      <li><strong>Always use the same metric type</strong> (richness, Shannon, or Simpson) for both regions</li>
+                      <li><strong>Always use the same partitioning method</strong> (additive or multiplicative) for fair comparison</li>
+                      <li><strong>For Shannon:</strong> Stick with additive (H'γ = H'α + βH')</li>
+                      <li><strong>For Simpson:</strong> Use multiplicative with effective numbers (ᴰDγ = ᴰDα × βD)</li>
+                      <li><strong>For Richness:</strong> Choose one and be consistent, but multiplicative (Whittaker) is more intuitive</li>
+                    </ul>
+                  </div>
+                </div>
               </div>
               
               <div className="space-y-4">
@@ -558,13 +642,35 @@ const ComprehensiveDiversityMetrics: React.FC<ComprehensiveDiversityMetricsProps
 
                     {/* Key Insights */}
                     <div className="pt-2 border-t border-muted/20">
-                      <h5 className="font-semibold text-xs mb-2">Key Insights</h5>
+                      <h5 className="font-semibold text-xs mb-2">Key Insights About Gamma Diversity</h5>
                       <ul className="space-y-1 text-xs text-muted-foreground list-disc list-inside">
-                        <li>Richness only counts species; Shannon/Simpson also consider abundances</li>
-                        <li>High gamma but low alpha = high turnover between communities</li>
-                        <li>Similar gamma and alpha values = homogeneous communities</li>
-                        <li>Shannon β measures information gain; Simpson β measures effective distinctness</li>
+                        <li><strong>Richness vs abundance-based:</strong> Richness only counts species; Shannon/Simpson also consider abundances and evenness</li>
+                        <li><strong>High turnover pattern:</strong> High gamma but low alpha = high turnover between communities (heterogeneous landscape)</li>
+                        <li><strong>Homogeneous pattern:</strong> Similar gamma and alpha values = homogeneous communities (species present everywhere)</li>
+                        <li><strong>Shannon interpretation:</strong> βH' measures information gain from comparing communities (additive decomposition)</li>
+                        <li><strong>Simpson interpretation:</strong> βD measures effective number of distinct community types (multiplicative with effective numbers)</li>
+                        <li><strong>Scale matters:</strong> Gamma depends on spatial extent - larger regions typically have higher gamma diversity</li>
+                        <li><strong>Conservation implications:</strong> High beta diversity suggests need for multiple protected areas to capture regional biodiversity</li>
                       </ul>
+                    </div>
+
+                    {/* When Each Metric Differs */}
+                    <div className="pt-2 border-t border-muted/20">
+                      <h5 className="font-semibold text-xs mb-2">When Gamma Metrics Tell Different Stories</h5>
+                      <div className="space-y-2 text-xs text-muted-foreground">
+                        <div className="p-2 bg-background rounded">
+                          <strong>Scenario 1: High γ richness, low H'γ</strong>
+                          <p>Many species exist but most are very rare. Indicates uneven regional abundance distribution.</p>
+                        </div>
+                        <div className="p-2 bg-background rounded">
+                          <strong>Scenario 2: Similar γ and H'γ rankings</strong>
+                          <p>Species abundances are relatively even at regional scale. Suggests balanced community structure.</p>
+                        </div>
+                        <div className="p-2 bg-background rounded">
+                          <strong>Scenario 3: Large βH' but small βD</strong>
+                          <p>Rare species differ between communities, but dominant species are similar. Common in disturbed vs pristine comparisons.</p>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
