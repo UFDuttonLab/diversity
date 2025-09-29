@@ -89,66 +89,75 @@ const PCAVisualization: React.FC<PCAVisualizationProps> = ({ communities }) => {
       row.map((val, j) => -0.5 * (val - rowMeans[i] - colMeans[j] + mean))
     );
     
-    // Simplified SVD-based PCoA implementation
-    // Perform eigenvalue decomposition on the centered matrix
+    // Correct PCoA implementation using eigendecomposition on centered matrix
     
-    // Calculate covariance matrix of centered dissimilarity matrix
-    const covMatrix = centeredMatrix.map((row, i) => 
-      centeredMatrix[0].map((_, j) => {
-        let sum = 0;
-        for (let k = 0; k < n; k++) {
-          sum += centeredMatrix[k][i] * centeredMatrix[k][j];
-        }
-        return sum / (n - 1);
-      })
-    );
-    
-    // Simple power iteration method to find first two eigenvectors
-    // Initialize random vectors
-    let v1 = Array(n).fill(0).map(() => Math.random() - 0.5);
-    let v2 = Array(n).fill(0).map(() => Math.random() - 0.5);
-    
-    // Normalize
+    // Normalize function
     const normalize = (vec: number[]) => {
       const mag = Math.sqrt(vec.reduce((sum, v) => sum + v * v, 0));
       return mag > 0 ? vec.map(v => v / mag) : vec;
     };
     
-    // Power iteration for first eigenvector
-    for (let iter = 0; iter < 50; iter++) {
-      const newV1 = covMatrix.map(row => 
-        row.reduce((sum, val, j) => sum + val * v1[j], 0)
-      );
+    // Initialize random eigenvectors
+    let v1 = Array(n).fill(0).map(() => Math.random() - 0.5);
+    let v2 = Array(n).fill(0).map(() => Math.random() - 0.5);
+    
+    // Power iteration for first eigenvector on centered matrix
+    for (let iter = 0; iter < 100; iter++) {
+      const newV1 = Array(n).fill(0);
+      for (let i = 0; i < n; i++) {
+        for (let j = 0; j < n; j++) {
+          newV1[i] += centeredMatrix[i][j] * v1[j];
+        }
+      }
       v1 = normalize(newV1);
     }
     
     // Calculate first eigenvalue
-    const eigenval1 = v1.reduce((sum, val, i) => 
-      sum + val * covMatrix[i].reduce((s2, cval, j) => s2 + cval * v1[j], 0), 0
-    );
+    let eigenval1 = 0;
+    for (let i = 0; i < n; i++) {
+      let temp = 0;
+      for (let j = 0; j < n; j++) {
+        temp += centeredMatrix[i][j] * v1[j];
+      }
+      eigenval1 += v1[i] * temp;
+    }
     
     // Deflate matrix for second eigenvector
-    const deflatedMatrix = covMatrix.map((row, i) => 
+    const deflatedMatrix = centeredMatrix.map((row, i) => 
       row.map((val, j) => val - eigenval1 * v1[i] * v1[j])
     );
     
+    // Orthogonalize v2 with respect to v1
+    const makeOrthogonal = (vec: number[], basis: number[]) => {
+      const dot = vec.reduce((sum, val, i) => sum + val * basis[i], 0);
+      return vec.map((val, i) => val - dot * basis[i]);
+    };
+    
     // Power iteration for second eigenvector
-    for (let iter = 0; iter < 50; iter++) {
-      const newV2 = deflatedMatrix.map(row => 
-        row.reduce((sum, val, j) => sum + val * v2[j], 0)
-      );
-      v2 = normalize(newV2);
+    for (let iter = 0; iter < 100; iter++) {
+      const newV2 = Array(n).fill(0);
+      for (let i = 0; i < n; i++) {
+        for (let j = 0; j < n; j++) {
+          newV2[i] += deflatedMatrix[i][j] * v2[j];
+        }
+      }
+      v2 = normalize(makeOrthogonal(newV2, v1));
     }
     
     // Calculate second eigenvalue
-    const eigenval2 = v2.reduce((sum, val, i) => 
-      sum + val * deflatedMatrix[i].reduce((s2, cval, j) => s2 + cval * v2[j], 0), 0
-    );
+    let eigenval2 = 0;
+    for (let i = 0; i < n; i++) {
+      let temp = 0;
+      for (let j = 0; j < n; j++) {
+        temp += deflatedMatrix[i][j] * v2[j];
+      }
+      eigenval2 += v2[i] * temp;
+    }
     
-    // Project communities onto principal coordinates
+    // Principal coordinates are eigenvector components scaled by sqrt(eigenvalue)
     const pcaData = communities.map((community, i) => {
-      const pc1 = centeredMatrix[i].reduce((sum, val, j) => sum + val * v1[j], 0) * Math.sqrt(Math.abs(eigenval1));
-      const pc2 = centeredMatrix[i].reduce((sum, val, j) => sum + val * v2[j], 0) * Math.sqrt(Math.abs(eigenval2));
+      const pc1 = v1[i] * Math.sqrt(Math.max(0, eigenval1));
+      const pc2 = v2[i] * Math.sqrt(Math.max(0, eigenval2));
       
       return {
         community: community.id,
