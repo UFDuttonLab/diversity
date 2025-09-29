@@ -116,35 +116,37 @@ const NMDSVisualization: React.FC<NMDSVisualizationProps> = ({ communities }) =>
       .sort((a, b) => a.value - b.value)
       .map((item, rank) => ({ originalIndex: item.index, rank }));
 
-    // Principal Coordinate Analysis (PCoA) for initialization
+    // Optimized Principal Coordinate Analysis (PCoA) for initialization
     const performPCoA = (): number[][] => {
-      // Convert dissimilarities to similarities for centering
-      const maxDissim = Math.max(...dissimilarities);
-      const simMatrix = Array(n).fill(0).map(() => Array(n).fill(0));
+      // Build symmetric dissimilarity matrix efficiently
+      const dissimMatrix = Array(n).fill(0).map(() => Array(n).fill(0));
+      
+      // Fill symmetric matrix from upper triangle
+      for (let pairIdx = 0; pairIdx < pairIndices.length; pairIdx++) {
+        const [i, j] = pairIndices[pairIdx];
+        const dissim = dissimilarities[pairIdx];
+        dissimMatrix[i][j] = dissim;
+        dissimMatrix[j][i] = dissim;
+      }
+      
+      // Convert to double-centered Gram matrix for PCoA
+      const gramMatrix = Array(n).fill(0).map(() => Array(n).fill(0));
       
       for (let i = 0; i < n; i++) {
         for (let j = 0; j < n; j++) {
-          if (i === j) {
-            simMatrix[i][j] = 1;
-          } else {
-            const pairIdx = i < j ? 
-              pairIndices.findIndex(([a, b]) => a === i && b === j) :
-              pairIndices.findIndex(([a, b]) => a === j && b === i);
-            if (pairIdx >= 0) {
-              simMatrix[i][j] = 1 - dissimilarities[pairIdx] / maxDissim;
-            }
-          }
+          const dissimSq = dissimMatrix[i][j] * dissimMatrix[i][j];
+          gramMatrix[i][j] = -0.5 * dissimSq;
         }
       }
       
-      // Center the matrix
-      const rowMeans = simMatrix.map(row => row.reduce((s, v) => s + v, 0) / n);
+      // Double center the Gram matrix
+      const rowMeans = gramMatrix.map(row => row.reduce((s, v) => s + v, 0) / n);
       const grandMean = rowMeans.reduce((s, v) => s + v, 0) / n;
       
       const centeredMatrix = Array(n).fill(0).map(() => Array(n).fill(0));
       for (let i = 0; i < n; i++) {
         for (let j = 0; j < n; j++) {
-          centeredMatrix[i][j] = simMatrix[i][j] - rowMeans[i] - rowMeans[j] + grandMean;
+          centeredMatrix[i][j] = gramMatrix[i][j] - rowMeans[i] - rowMeans[j] + grandMean;
         }
       }
       
@@ -183,7 +185,7 @@ const NMDSVisualization: React.FC<NMDSVisualizationProps> = ({ communities }) =>
       return eigen1.map((x1, i) => [x1 * 2, eigen2[i] * 2]);
     };
 
-    // Improved Pool Adjacent Violators Algorithm 
+    // Corrected Pool Adjacent Violators Algorithm (PAV)
     const poolAdjacentViolators = (distances: number[]): number[] => {
       if (distances.length === 0) return [];
       
@@ -193,29 +195,38 @@ const NMDSVisualization: React.FC<NMDSVisualizationProps> = ({ communities }) =>
         return { distance, rank, originalIndex: index };
       });
       
-      // Sort by rank
+      // Sort by rank (ascending order for monotonic constraint)
       pairs.sort((a, b) => a.rank - b.rank);
       
-      // Pool Adjacent Violators using a simpler approach
+      // Apply PAV algorithm for isotonic regression
       const fitted = new Array(distances.length);
-      let i = 0;
+      const workingPairs = [...pairs];
       
-      while (i < pairs.length) {
+      let i = 0;
+      while (i < workingPairs.length) {
         let j = i;
-        let sum = pairs[i].distance;
+        let sum = workingPairs[i].distance;
         let count = 1;
         
-        // Find violating sequence and pool them
-        while (j + 1 < pairs.length && sum / count > pairs[j + 1].distance) {
-          j++;
-          sum += pairs[j].distance;
-          count++;
+        // Look ahead to find violations and pool them
+        while (j + 1 < workingPairs.length) {
+          const currentAvg = sum / count;
+          const nextValue = workingPairs[j + 1].distance;
+          
+          // If monotonicity is violated (current average > next value)
+          if (currentAvg > nextValue) {
+            j++;
+            sum += workingPairs[j].distance;
+            count++;
+          } else {
+            break;
+          }
         }
         
-        // Assign pooled value
+        // Assign pooled average to all items in the violating block
         const pooledValue = sum / count;
         for (let k = i; k <= j; k++) {
-          fitted[pairs[k].originalIndex] = pooledValue;
+          fitted[workingPairs[k].originalIndex] = pooledValue;
         }
         
         i = j + 1;
@@ -224,7 +235,7 @@ const NMDSVisualization: React.FC<NMDSVisualizationProps> = ({ communities }) =>
       return fitted;
     };
 
-    // Calculate Kruskal's Stress-1
+    // Calculate Kruskal's Stress-1 (CORRECTED FORMULA)
     const calculateStress = (config: number[][]): number => {
       const distances: number[] = [];
       
@@ -244,7 +255,7 @@ const NMDSVisualization: React.FC<NMDSVisualizationProps> = ({ communities }) =>
       for (let k = 0; k < distances.length; k++) {
         const diff = distances[k] - fitted[k];
         numerator += diff * diff;
-        denominator += distances[k] * distances[k];
+        denominator += fitted[k] * fitted[k]; // CORRECTED: Use fitted distances squared
       }
       
       return denominator > 0 ? Math.sqrt(numerator / denominator) : 1.0;
@@ -297,6 +308,9 @@ const NMDSVisualization: React.FC<NMDSVisualizationProps> = ({ communities }) =>
       for (let iter = 0; iter < maxIterations; iter++) {
         iterations = iter + 1;
         
+        // Adaptive step size
+        let stepSize = Math.max(0.01, 0.2 * Math.exp(-iter / 100));
+        
         // Calculate current distances
         const distances: number[] = [];
         for (let i = 0; i < n; i++) {
@@ -311,21 +325,26 @@ const NMDSVisualization: React.FC<NMDSVisualizationProps> = ({ communities }) =>
         const fittedDistances = poolAdjacentViolators(distances);
         const currentStress = calculateStress(config);
         
-        // Check convergence
+        // Check convergence and validate stress improvement
         const stressChange = Math.abs(prevStress - currentStress);
-        if (stressChange < tolerance) {
-          stagnationCount++;
-          if (stagnationCount > 15) break;
+        
+        // Ensure stress is decreasing (or stagnant for convergence)
+        if (currentStress <= prevStress + tolerance) {
+          if (stressChange < tolerance) {
+            stagnationCount++;
+            if (stagnationCount > 15) break;
+          } else {
+            stagnationCount = 0;
+          }
         } else {
-          stagnationCount = 0;
+          // Stress increased - reduce step size and try to recover
+          stepSize *= 0.5;
+          if (stepSize < 1e-6) break; // Give up if step too small
         }
         
         prevStress = currentStress;
         
-        // Adaptive step size
-        const stepSize = Math.max(0.01, 0.2 * Math.exp(-iter / 100));
-        
-        // Calculate proper NMDS gradients using Shepard diagram approach
+        // Calculate proper NMDS gradients using correct stress derivative
         const gradients = Array(n).fill(0).map(() => [0, 0]);
         
         for (let pairIdx = 0; pairIdx < pairIndices.length; pairIdx++) {
@@ -333,12 +352,13 @@ const NMDSVisualization: React.FC<NMDSVisualizationProps> = ({ communities }) =>
           const dx = config[i][0] - config[j][0];
           const dy = config[i][1] - config[j][1];
           const currentDist = distances[pairIdx];
-          const targetDist = fittedDistances[pairIdx];
+          const fittedDist = fittedDistances[pairIdx];
+          const dissimilarity = dissimilarities[pairIdx];
           
-          if (currentDist > 1e-10) {
-            // Proper NMDS gradient: move toward target distance
-            const error = targetDist - currentDist; // Corrected direction
-            const factor = 2 * error / currentDist;
+          if (currentDist > 1e-10 && fittedDist > 1e-10) {
+            // Proper stress gradient: ∂S/∂x_ik = 4 * Σ_j((d_ij - d̂_ij)/d_ij) * (x_ik - x_jk)
+            const errorRatio = (currentDist - fittedDist) / currentDist;
+            const factor = 4 * errorRatio / currentDist;
             
             const gradX = factor * dx;
             const gradY = factor * dy;
@@ -374,7 +394,19 @@ const NMDSVisualization: React.FC<NMDSVisualizationProps> = ({ communities }) =>
       
       console.log(`NMDS attempt ${attempt}: Stress=${finalStress.toFixed(4)}, X-range=${finalXRange.toFixed(3)}, Y-range=${finalYRange.toFixed(3)}`);
       
-      if (finalStress < bestStress && finalXRange > 0.05 && finalYRange > 0.05) {
+      // Validate fitted distances maintain monotonicity (PAV validation)
+      const testDistances: number[] = [];
+      for (let i = 0; i < config.length; i++) {
+        for (let j = i + 1; j < config.length; j++) {
+          const dx = config[i][0] - config[j][0];
+          const dy = config[i][1] - config[j][1];
+          testDistances.push(Math.sqrt(dx * dx + dy * dy) + 1e-10);
+        }
+      }
+      const testFitted = poolAdjacentViolators(testDistances);
+      const monotonicityCheck = testFitted.every((val, i, arr) => i === 0 || val >= arr[i-1] - 1e-10);
+      
+      if (finalStress < bestStress && finalXRange > 0.05 && finalYRange > 0.05 && monotonicityCheck) {
         bestStress = finalStress;
         bestConfiguration = config.map(point => [...point]);
         bestIterations = iterations;
@@ -458,7 +490,12 @@ const NMDSVisualization: React.FC<NMDSVisualizationProps> = ({ communities }) =>
         <CardHeader>
           <CardTitle>Non-metric Multidimensional Scaling (NMDS)</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Based on Bray-Curtis dissimilarity matrix. Points closer together have more similar species composition. Stress: {nmdsStats.stress.toFixed(3)}
+            Based on Bray-Curtis dissimilarity matrix. Points closer together have more similar species composition. 
+            Stress: {nmdsStats.stress.toFixed(3)} 
+            {nmdsStats.stress < 0.1 ? " (Excellent)" : 
+             nmdsStats.stress < 0.2 ? " (Good)" : 
+             nmdsStats.stress < 0.3 ? " (Fair)" : " (Poor)"}
+            {nmdsStats.converged ? " - Converged" : " - Not converged"}
           </p>
         </CardHeader>
         <CardContent>
