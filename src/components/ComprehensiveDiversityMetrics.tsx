@@ -75,13 +75,55 @@ const ComprehensiveDiversityMetrics: React.FC<ComprehensiveDiversityMetricsProps
   const calculateBetaDiversity = () => {
     const alphaMetrics = communities.map(calculateAlphaDiversity);
     const meanAlphaRichness = alphaMetrics.reduce((sum, m) => sum + m.richness, 0) / alphaMetrics.length;
+    const meanAlphaShannon = alphaMetrics.reduce((sum, m) => sum + m.shannon, 0) / alphaMetrics.length;
+    const meanAlphaSimpson = alphaMetrics.reduce((sum, m) => sum + m.simpsonDiversity, 0) / alphaMetrics.length;
     
-    // Gamma diversity
+    // Gamma diversity - pool all abundances across communities
     const allSpecies = new Set<number>();
     communities.forEach(community => {
       community.species.forEach(species => allSpecies.add(species));
     });
     const gammaRichness = allSpecies.size;
+    
+    // Pool abundances for gamma Shannon and Simpson
+    const pooledAbundances = new Map<number, number>();
+    let totalIndividuals = 0;
+    
+    communities.forEach(community => {
+      community.species.forEach((species, idx) => {
+        const count = community.abundance[idx];
+        pooledAbundances.set(species, (pooledAbundances.get(species) || 0) + count);
+        totalIndividuals += count;
+      });
+    });
+    
+    // Gamma Shannon: H'γ = -Σ(pi_pooled × ln(pi_pooled))
+    let gammaShannon = 0;
+    pooledAbundances.forEach(count => {
+      if (count > 0) {
+        const pi = count / totalIndividuals;
+        gammaShannon -= pi * Math.log(pi);
+      }
+    });
+    
+    // Gamma Simpson: Dγ = 1 - Σ(pi_pooled²)
+    let gammaSimpsonD = 0;
+    pooledAbundances.forEach(count => {
+      if (count > 0) {
+        const pi = count / totalIndividuals;
+        gammaSimpsonD += pi * pi;
+      }
+    });
+    const gammaSimpson = 1 - gammaSimpsonD;
+    
+    // Additive partitioning for Shannon: βH' = H'γ - H'α
+    const betaShannon = gammaShannon - meanAlphaShannon;
+    
+    // Multiplicative partitioning for Simpson using effective numbers
+    // Effective numbers: ᴰD = 1/(1-D) = 1/Σ(pi²)
+    const effectiveGammaSimpson = 1 / gammaSimpsonD;
+    const effectiveAlphaSimpson = 1 / (1 - meanAlphaSimpson);
+    const betaSimpsonMultiplicative = effectiveGammaSimpson / effectiveAlphaSimpson;
     
     // Whittaker's beta: β = γ/α̅
     const whittakerBeta = gammaRichness / meanAlphaRichness;
@@ -150,7 +192,15 @@ const ComprehensiveDiversityMetrics: React.FC<ComprehensiveDiversityMetricsProps
       sorensenSimilarity: meanSorensenSimilarity,
       sorensenDissimilarity: meanSorensenDissimilarity,
       gammaRichness,
-      meanAlphaRichness
+      meanAlphaRichness,
+      gammaShannon,
+      meanAlphaShannon,
+      betaShannon,
+      gammaSimpson,
+      meanAlphaSimpson,
+      betaSimpsonMultiplicative,
+      effectiveGammaSimpson,
+      effectiveAlphaSimpson
     };
   };
 
@@ -367,56 +417,154 @@ const ComprehensiveDiversityMetrics: React.FC<ComprehensiveDiversityMetricsProps
             </TabsContent>
             
             <TabsContent value="gamma" className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <MetricCard
-                    title="Gamma Richness (γ)"
-                    value={betaMetrics.gammaRichness}
-                    formula="γ = total unique species"
-                    interpretation="Regional species pool"
-                    whenToUse="When you want to understand the total species diversity available across all local communities in a region."
-                    relatedMetrics="Sum of alpha diversity plus species added by beta diversity. Connected to alpha and beta by γ = α̅ × βw or γ = α̅ + βa."
-                  />
+              <div className="mb-4 p-4 bg-educational-info rounded-lg">
+                <h4 className="font-semibold text-sm mb-2">Gamma Diversity</h4>
+                <p className="text-xs text-muted-foreground">
+                  Gamma diversity measures total diversity across all communities in a region. It includes richness-based (species counts) 
+                  and abundance-based (Shannon, Simpson) metrics that reveal different aspects of regional biodiversity.
+                </p>
+              </div>
+              
+              <div className="space-y-4">
+                {/* Gamma Richness */}
+                <div className="p-6 border rounded-lg space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-medium">Gamma Richness (γ)</h4>
+                    <Badge variant="secondary" className="text-lg px-3 py-1">{betaMetrics.gammaRichness}</Badge>
+                  </div>
                   
-                  <div className="p-4 border rounded-lg space-y-3">
-                    <h4 className="font-medium text-sm">Species Accumulation</h4>
-                    <div className="space-y-2">
-                      {communities.map((community, index) => (
-                        <div key={community.id} className="flex justify-between text-xs">
-                          <span>Community {community.id}:</span>
-                          <span>{community.species.length} species</span>
-                        </div>
-                      ))}
+                  <div className="text-sm text-muted-foreground space-y-2">
+                    <div className="p-3 bg-background rounded">
+                      <strong>Formula:</strong> γ = total number of species across all communities
                     </div>
-                    <div className="pt-2 border-t text-xs">
-                      <div className="flex justify-between font-medium">
-                        <span>Total (γ):</span>
-                        <span>{betaMetrics.gammaRichness} species</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Mean (α̅):</span>
-                        <span>{betaMetrics.meanAlphaRichness.toFixed(1)} species</span>
-                      </div>
+                    
+                    <div className="pt-2 border-t border-muted/20">
+                      <h5 className="font-semibold mb-2">Interpretation:</h5>
+                      <p>Total regional species pool. Ignores abundances - only counts presence/absence.</p>
                     </div>
                   </div>
                 </div>
-                
-                <div className="p-4 bg-educational-success rounded-lg space-y-3">
-                  <h4 className="font-semibold text-sm">Diversity Partitioning</h4>
-                  <div className="text-xs space-y-2">
-                    <p><strong>Total Diversity (γ):</strong> {betaMetrics.gammaRichness} species</p>
-                    <p><strong>Average Local Diversity (α̅):</strong> {betaMetrics.meanAlphaRichness.toFixed(1)} species</p>
-                    <p><strong>Between-community Diversity (β):</strong> {betaMetrics.additiveBeta.toFixed(1)} species</p>
-                    <div className="pt-2 border-t">
-                      <p><strong>Interpretation:</strong></p>
+
+                {/* Gamma Shannon */}
+                <div className="p-6 border rounded-lg space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-medium">Gamma Shannon (H'γ)</h4>
+                    <Badge variant="secondary" className="text-lg px-3 py-1">{betaMetrics.gammaShannon.toFixed(3)}</Badge>
+                  </div>
+                  
+                  <div className="text-sm text-muted-foreground space-y-2">
+                    <div className="p-3 bg-background rounded">
+                      <strong>Formula:</strong> H'γ = -Σ(pi_pooled × ln(pi_pooled))
+                    </div>
+                    
+                    <div className="pt-2 border-t border-muted/20">
+                      <h5 className="font-semibold mb-2">Interpretation:</h5>
                       <p>
-                        {betaMetrics.additiveBeta > betaMetrics.meanAlphaRichness 
-                          ? "High turnover - communities are compositionally distinct"
-                          : betaMetrics.additiveBeta > betaMetrics.meanAlphaRichness * 0.5
-                          ? "Moderate turnover - some species overlap between communities"
-                          : "Low turnover - communities share many species"
-                        }
+                        Regional Shannon diversity calculated from pooled abundances across all communities. 
+                        Accounts for both species identity and relative abundance at the regional scale.
                       </p>
+                    </div>
+                    
+                    <div className="pt-2 border-t border-muted/20 text-xs">
+                      <strong>Mean Alpha Shannon:</strong> {betaMetrics.meanAlphaShannon.toFixed(3)}<br/>
+                      <strong>Mathematical property:</strong> H'γ ≥ H'α (gamma is always ≥ mean alpha)
+                    </div>
+                  </div>
+                </div>
+
+                {/* Gamma Simpson */}
+                <div className="p-6 border rounded-lg space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-medium">Gamma Simpson (1-Dγ)</h4>
+                    <Badge variant="secondary" className="text-lg px-3 py-1">{betaMetrics.gammaSimpson.toFixed(3)}</Badge>
+                  </div>
+                  
+                  <div className="text-sm text-muted-foreground space-y-2">
+                    <div className="p-3 bg-background rounded">
+                      <strong>Formula:</strong> 1-Dγ = 1 - Σ(pi_pooled²)
+                    </div>
+                    
+                    <div className="pt-2 border-t border-muted/20">
+                      <h5 className="font-semibold mb-2">Interpretation:</h5>
+                      <p>
+                        Regional Simpson diversity from pooled abundances. Emphasizes contribution of common species 
+                        across the entire region. Less sensitive to rare species than Shannon.
+                      </p>
+                    </div>
+                    
+                    <div className="pt-2 border-t border-muted/20 text-xs">
+                      <strong>Mean Alpha Simpson:</strong> {betaMetrics.meanAlphaSimpson.toFixed(3)}<br/>
+                      <strong>Effective number of species (gamma):</strong> {betaMetrics.effectiveGammaSimpson.toFixed(2)}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Diversity Partitioning */}
+                <div className="p-6 border rounded-lg space-y-4 bg-educational-info">
+                  <h4 className="font-semibold">Diversity Partitioning</h4>
+                  
+                  <div className="space-y-4 text-sm">
+                    {/* Richness Partitioning */}
+                    <div className="space-y-2">
+                      <h5 className="font-semibold text-xs uppercase">Richness-Based Partitioning</h5>
+                      <div className="space-y-2 text-xs">
+                        <div className="p-3 bg-background rounded">
+                          <strong>Multiplicative:</strong> γ = α̅ × β<br/>
+                          <span className="text-muted-foreground">
+                            {betaMetrics.gammaRichness} = {betaMetrics.meanAlphaRichness.toFixed(2)} × {betaMetrics.whittakerBeta.toFixed(2)}
+                          </span>
+                        </div>
+                        <div className="p-3 bg-background rounded">
+                          <strong>Additive:</strong> γ = α̅ + β<br/>
+                          <span className="text-muted-foreground">
+                            {betaMetrics.gammaRichness} = {betaMetrics.meanAlphaRichness.toFixed(2)} + {betaMetrics.additiveBeta.toFixed(2)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Shannon Partitioning */}
+                    <div className="space-y-2 pt-2 border-t border-muted/20">
+                      <h5 className="font-semibold text-xs uppercase">Shannon-Based Partitioning (Additive)</h5>
+                      <div className="p-3 bg-background rounded text-xs">
+                        <strong>Formula:</strong> H'γ = H'α + βH'<br/>
+                        <strong>Between-community diversity:</strong> βH' = H'γ - H'α<br/>
+                        <span className="text-muted-foreground">
+                          {betaMetrics.gammaShannon.toFixed(3)} = {betaMetrics.meanAlphaShannon.toFixed(3)} + {betaMetrics.betaShannon.toFixed(3)}
+                        </span>
+                        <p className="mt-2 text-muted-foreground">
+                          Shannon diversity partitions additively. βH' represents the diversity gained from comparing communities.
+                          Higher values indicate greater turnover in species composition and abundance.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Simpson Partitioning */}
+                    <div className="space-y-2 pt-2 border-t border-muted/20">
+                      <h5 className="font-semibold text-xs uppercase">Simpson-Based Partitioning (Multiplicative)</h5>
+                      <div className="p-3 bg-background rounded text-xs">
+                        <strong>Formula:</strong> ᴰDγ = ᴰDα × βD<br/>
+                        <strong>True beta diversity:</strong> βD = ᴰDγ / ᴰDα<br/>
+                        <span className="text-muted-foreground">
+                          {betaMetrics.effectiveGammaSimpson.toFixed(2)} = {betaMetrics.effectiveAlphaSimpson.toFixed(2)} × {betaMetrics.betaSimpsonMultiplicative.toFixed(2)}
+                        </span>
+                        <p className="mt-2 text-muted-foreground">
+                          Using effective numbers (Hill numbers), Simpson diversity partitions multiplicatively. 
+                          βD = {betaMetrics.betaSimpsonMultiplicative.toFixed(2)} means the region contains {betaMetrics.betaSimpsonMultiplicative.toFixed(2)}× 
+                          as many "effective communities" as expected if all communities were identical.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Key Insights */}
+                    <div className="pt-2 border-t border-muted/20">
+                      <h5 className="font-semibold text-xs mb-2">Key Insights</h5>
+                      <ul className="space-y-1 text-xs text-muted-foreground list-disc list-inside">
+                        <li>Richness only counts species; Shannon/Simpson also consider abundances</li>
+                        <li>High gamma but low alpha = high turnover between communities</li>
+                        <li>Similar gamma and alpha values = homogeneous communities</li>
+                        <li>Shannon β measures information gain; Simpson β measures effective distinctness</li>
+                      </ul>
                     </div>
                   </div>
                 </div>
