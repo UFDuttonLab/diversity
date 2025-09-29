@@ -118,7 +118,7 @@ const DiversitySimulator: React.FC = () => {
 
   return (
     <TooltipProvider>
-      <div className="min-h-screen bg-background">
+      <div className="flex flex-col min-h-screen bg-background">
         {/* Header */}
         <header className="border-b bg-card">
           <div className="container mx-auto px-4 py-6">
@@ -178,7 +178,7 @@ const DiversitySimulator: React.FC = () => {
         </header>
 
         {/* Main Content */}
-        <div className="container mx-auto px-4 py-6">
+        <div className="flex-1 container mx-auto px-4 py-6">
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
             {/* Controls Sidebar */}
             <div className="lg:col-span-1 space-y-4">
@@ -326,6 +326,25 @@ const DiversitySimulator: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* Footer */}
+        <footer className="border-t bg-card py-4">
+          <div className="container mx-auto px-4">
+            <div className="text-center">
+              <p className="text-sm text-muted-foreground">
+                Developed by{" "}
+                <a 
+                  href="https://ufduttonlab.github.io" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-primary hover:underline"
+                >
+                  Dutton Lab at UF
+                </a>
+              </p>
+            </div>
+          </div>
+        </footer>
       </div>
     </TooltipProvider>
   );
