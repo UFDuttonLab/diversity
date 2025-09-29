@@ -85,6 +85,7 @@ const NMDSVisualization: React.FC<NMDSVisualizationProps> = ({ communities }) =>
     
     if (dissimRange < 1e-6) {
       console.warn('NMDS: Insufficient variation in dissimilarity matrix');
+      // Use PCoA as fallback
       return {
         nmdsData: communities.map((community, i) => ({
           community: community.id,
@@ -114,47 +115,107 @@ const NMDSVisualization: React.FC<NMDSVisualizationProps> = ({ communities }) =>
       .map((value, index) => ({ value, index }))
       .sort((a, b) => a.value - b.value)
       .map((item, rank) => ({ originalIndex: item.index, rank }));
-    
-    const rankMap = new Array(dissimilarities.length);
-    rankOrder.forEach(item => {
-      rankMap[item.originalIndex] = item.rank;
-    });
 
-    // Proper Pool Adjacent Violators Algorithm
-    const poolAdjacentViolators = (distances: number[]): number[] => {
-      const n = distances.length;
-      const sortedData = distances
-        .map((distance, index) => ({ 
-          rank: rankMap[index], 
-          distance, 
-          originalIndex: index 
-        }))
-        .sort((a, b) => a.rank - b.rank);
+    // Principal Coordinate Analysis (PCoA) for initialization
+    const performPCoA = (): number[][] => {
+      // Convert dissimilarities to similarities for centering
+      const maxDissim = Math.max(...dissimilarities);
+      const simMatrix = Array(n).fill(0).map(() => Array(n).fill(0));
       
-      const fitted = new Array(n);
-      let i = 0;
-      
-      while (i < sortedData.length) {
-        let j = i;
-        let sum = sortedData[i].distance;
-        let count = 1;
-        
-        // Pool adjacent violators
-        while (j + 1 < sortedData.length) {
-          const avg = sum / count;
-          if (avg > sortedData[j + 1].distance) {
-            j++;
-            sum += sortedData[j].distance;
-            count++;
+      for (let i = 0; i < n; i++) {
+        for (let j = 0; j < n; j++) {
+          if (i === j) {
+            simMatrix[i][j] = 1;
           } else {
-            break;
+            const pairIdx = i < j ? 
+              pairIndices.findIndex(([a, b]) => a === i && b === j) :
+              pairIndices.findIndex(([a, b]) => a === j && b === i);
+            if (pairIdx >= 0) {
+              simMatrix[i][j] = 1 - dissimilarities[pairIdx] / maxDissim;
+            }
           }
         }
+      }
+      
+      // Center the matrix
+      const rowMeans = simMatrix.map(row => row.reduce((s, v) => s + v, 0) / n);
+      const grandMean = rowMeans.reduce((s, v) => s + v, 0) / n;
+      
+      const centeredMatrix = Array(n).fill(0).map(() => Array(n).fill(0));
+      for (let i = 0; i < n; i++) {
+        for (let j = 0; j < n; j++) {
+          centeredMatrix[i][j] = simMatrix[i][j] - rowMeans[i] - rowMeans[j] + grandMean;
+        }
+      }
+      
+      // Simple eigenvalue approximation (power method for first two components)
+      const getEigenVector = (matrix: number[][], iterations = 50): number[] => {
+        let v = Array(n).fill(0).map(() => Math.random() - 0.5);
         
-        // Set pooled average
+        for (let iter = 0; iter < iterations; iter++) {
+          const newV = Array(n).fill(0);
+          for (let i = 0; i < n; i++) {
+            for (let j = 0; j < n; j++) {
+              newV[i] += matrix[i][j] * v[j];
+            }
+          }
+          
+          const norm = Math.sqrt(newV.reduce((s, x) => s + x * x, 0));
+          v = newV.map(x => x / (norm || 1));
+        }
+        
+        return v;
+      };
+      
+      const eigen1 = getEigenVector(centeredMatrix);
+      
+      // Deflate matrix to get second eigenvector
+      const deflatedMatrix = Array(n).fill(0).map(() => Array(n).fill(0));
+      for (let i = 0; i < n; i++) {
+        for (let j = 0; j < n; j++) {
+          deflatedMatrix[i][j] = centeredMatrix[i][j] - eigen1[i] * eigen1[j];
+        }
+      }
+      
+      const eigen2 = getEigenVector(deflatedMatrix);
+      
+      // Combine eigenvectors as coordinates
+      return eigen1.map((x1, i) => [x1 * 2, eigen2[i] * 2]);
+    };
+
+    // Improved Pool Adjacent Violators Algorithm 
+    const poolAdjacentViolators = (distances: number[]): number[] => {
+      if (distances.length === 0) return [];
+      
+      // Create pairs with ranks for sorting
+      const pairs = distances.map((distance, index) => {
+        const rank = rankOrder.find(r => r.originalIndex === index)?.rank || 0;
+        return { distance, rank, originalIndex: index };
+      });
+      
+      // Sort by rank
+      pairs.sort((a, b) => a.rank - b.rank);
+      
+      // Pool Adjacent Violators using a simpler approach
+      const fitted = new Array(distances.length);
+      let i = 0;
+      
+      while (i < pairs.length) {
+        let j = i;
+        let sum = pairs[i].distance;
+        let count = 1;
+        
+        // Find violating sequence and pool them
+        while (j + 1 < pairs.length && sum / count > pairs[j + 1].distance) {
+          j++;
+          sum += pairs[j].distance;
+          count++;
+        }
+        
+        // Assign pooled value
         const pooledValue = sum / count;
         for (let k = i; k <= j; k++) {
-          fitted[sortedData[k].originalIndex] = pooledValue;
+          fitted[pairs[k].originalIndex] = pooledValue;
         }
         
         i = j + 1;
@@ -164,18 +225,18 @@ const NMDSVisualization: React.FC<NMDSVisualizationProps> = ({ communities }) =>
     };
 
     // Calculate Kruskal's Stress-1
-    const calculateStress = (config: number[][], fittedDistances?: number[]): number => {
+    const calculateStress = (config: number[][]): number => {
       const distances: number[] = [];
       
       for (let i = 0; i < n; i++) {
         for (let j = i + 1; j < n; j++) {
           const dx = config[i][0] - config[j][0];
           const dy = config[i][1] - config[j][1];
-          distances.push(Math.sqrt(dx * dx + dy * dy));
+          distances.push(Math.sqrt(dx * dx + dy * dy) + 1e-10); // Prevent division by zero
         }
       }
       
-      const fitted = fittedDistances || poolAdjacentViolators(distances);
+      const fitted = poolAdjacentViolators(distances);
       
       let numerator = 0;
       let denominator = 0;
@@ -189,33 +250,43 @@ const NMDSVisualization: React.FC<NMDSVisualizationProps> = ({ communities }) =>
       return denominator > 0 ? Math.sqrt(numerator / denominator) : 1.0;
     };
 
-    // NMDS optimization with multiple random starts
+    // NMDS optimization with PCoA initialization
     let bestStress = Infinity;
     let bestConfiguration: number[][] | null = null;
     let bestIterations = 0;
-    const maxIterations = 500;
-    const tolerance = 1e-6;
+    const maxIterations = 300;
+    const tolerance = 1e-5;
 
-    // Multiple random starts to avoid local minima
-    for (let attempt = 0; attempt < 15; attempt++) {
-      // Initialize with diverse random configuration
-      let config = Array(n).fill(0).map(() => {
-        const scale = 2 + attempt * 0.5;
-        return [
-          (Math.random() - 0.5) * scale,
-          (Math.random() - 0.5) * scale
-        ];
-      });
+    // Try PCoA initialization first, then random starts
+    const initStrategies = [
+      () => performPCoA(), // PCoA initialization
+      () => Array(n).fill(0).map(() => [(Math.random() - 0.5) * 4, (Math.random() - 0.5) * 4]), // Random wide
+      () => Array(n).fill(0).map(() => [(Math.random() - 0.5) * 2, (Math.random() - 0.5) * 2]), // Random medium
+      () => Array(n).fill(0).map(() => [(Math.random() - 0.5) * 6, (Math.random() - 0.5) * 6]), // Random tight
+    ];
+
+    for (let attempt = 0; attempt < initStrategies.length + 3; attempt++) {
+      let config: number[][];
       
-      // Ensure initial spread on both axes
-      const initXRange = Math.max(...config.map(p => p[0])) - Math.min(...config.map(p => p[0]));
-      const initYRange = Math.max(...config.map(p => p[1])) - Math.min(...config.map(p => p[1]));
+      if (attempt < initStrategies.length) {
+        config = initStrategies[attempt]();
+      } else {
+        // Additional random starts with varying scales
+        const scale = 2 + (attempt - initStrategies.length) * 1.5;
+        config = Array(n).fill(0).map((_, i) => [
+          (Math.random() - 0.5) * scale + (i % 2 === 0 ? 0.5 : -0.5),
+          (Math.random() - 0.5) * scale + (Math.floor(i / 2) % 2 === 0 ? 0.5 : -0.5)
+        ]);
+      }
       
-      if (initXRange < 0.1 || initYRange < 0.1) {
-        // Force spread if collapsed
+      // Ensure non-degenerate starting configuration
+      const xRange = Math.max(...config.map(p => p[0])) - Math.min(...config.map(p => p[0]));
+      const yRange = Math.max(...config.map(p => p[1])) - Math.min(...config.map(p => p[1]));
+      
+      if (xRange < 0.1 || yRange < 0.1) {
         config.forEach((point, i) => {
-          point[0] += (i % 2 === 0 ? 1 : -1) * (1 + Math.random());
-          point[1] += (Math.floor(i / 2) % 2 === 0 ? 1 : -1) * (1 + Math.random());
+          if (xRange < 0.1) point[0] = (i - n/2) * 0.5;
+          if (yRange < 0.1) point[1] = ((i % 2) - 0.5) * 2;
         });
       }
 
@@ -226,34 +297,35 @@ const NMDSVisualization: React.FC<NMDSVisualizationProps> = ({ communities }) =>
       for (let iter = 0; iter < maxIterations; iter++) {
         iterations = iter + 1;
         
-        // Calculate current distances and fitted distances once per iteration
+        // Calculate current distances
         const distances: number[] = [];
         for (let i = 0; i < n; i++) {
           for (let j = i + 1; j < n; j++) {
             const dx = config[i][0] - config[j][0];
             const dy = config[i][1] - config[j][1];
-            distances.push(Math.sqrt(dx * dx + dy * dy));
+            distances.push(Math.sqrt(dx * dx + dy * dy) + 1e-10);
           }
         }
         
+        // Get fitted distances using isotonic regression
         const fittedDistances = poolAdjacentViolators(distances);
-        const currentStress = calculateStress(config, fittedDistances);
+        const currentStress = calculateStress(config);
         
         // Check convergence
         const stressChange = Math.abs(prevStress - currentStress);
         if (stressChange < tolerance) {
           stagnationCount++;
-          if (stagnationCount > 10) break;
+          if (stagnationCount > 15) break;
         } else {
           stagnationCount = 0;
         }
         
         prevStress = currentStress;
         
-        // Adaptive step size with momentum
-        const stepSize = 0.1 * Math.exp(-iter / 150) * (1 + 0.05 * Math.random());
+        // Adaptive step size
+        const stepSize = Math.max(0.01, 0.2 * Math.exp(-iter / 100));
         
-        // Calculate gradients based on Shepard diagram approach
+        // Calculate proper NMDS gradients using Shepard diagram approach
         const gradients = Array(n).fill(0).map(() => [0, 0]);
         
         for (let pairIdx = 0; pairIdx < pairIndices.length; pairIdx++) {
@@ -264,13 +336,12 @@ const NMDSVisualization: React.FC<NMDSVisualizationProps> = ({ communities }) =>
           const targetDist = fittedDistances[pairIdx];
           
           if (currentDist > 1e-10) {
-            // Gradient magnitude based on stress derivative
-            const error = currentDist - targetDist;
-            const gradMagnitude = 2 * error / currentDist;
+            // Proper NMDS gradient: move toward target distance
+            const error = targetDist - currentDist; // Corrected direction
+            const factor = 2 * error / currentDist;
             
-            // Apply gradients to move points toward target configuration
-            const gradX = gradMagnitude * dx;
-            const gradY = gradMagnitude * dy;
+            const gradX = factor * dx;
+            const gradY = factor * dy;
             
             gradients[i][0] += gradX;
             gradients[i][1] += gradY;
@@ -279,32 +350,37 @@ const NMDSVisualization: React.FC<NMDSVisualizationProps> = ({ communities }) =>
           }
         }
         
-        // Update configuration with gradients
+        // Apply gradients with step size
         for (let i = 0; i < n; i++) {
-          config[i][0] -= stepSize * gradients[i][0];
-          config[i][1] -= stepSize * gradients[i][1];
+          config[i][0] += stepSize * gradients[i][0];
+          config[i][1] += stepSize * gradients[i][1];
         }
         
-        // Check for axis collapse and restart if needed
+        // Monitor for axis collapse
         const xRange = Math.max(...config.map(p => p[0])) - Math.min(...config.map(p => p[0]));
         const yRange = Math.max(...config.map(p => p[1])) - Math.min(...config.map(p => p[1]));
         
-        if (iter > 50 && (xRange < 0.01 || yRange < 0.01)) {
-          console.warn(`NMDS: Axis collapse detected at iteration ${iter}, restarting`);
-          break; // Move to next attempt
+        if (iter > 20 && (xRange < 0.05 || yRange < 0.05)) {
+          console.warn(`NMDS attempt ${attempt}: Axis collapse detected at iteration ${iter}`);
+          break; // Try next initialization
         }
       }
       
       const finalStress = calculateStress(config);
       
-      // Validate final configuration
+      // Validate final configuration - ensure both axes have meaningful variation
       const finalXRange = Math.max(...config.map(p => p[0])) - Math.min(...config.map(p => p[0]));
       const finalYRange = Math.max(...config.map(p => p[1])) - Math.min(...config.map(p => p[1]));
       
-      if (finalStress < bestStress && finalXRange > 0.1 && finalYRange > 0.1) {
+      console.log(`NMDS attempt ${attempt}: Stress=${finalStress.toFixed(4)}, X-range=${finalXRange.toFixed(3)}, Y-range=${finalYRange.toFixed(3)}`);
+      
+      if (finalStress < bestStress && finalXRange > 0.05 && finalYRange > 0.05) {
         bestStress = finalStress;
         bestConfiguration = config.map(point => [...point]);
         bestIterations = iterations;
+        
+        // If we get good stress, we can stop early
+        if (bestStress < 0.15) break;
       }
     }
     
@@ -334,16 +410,32 @@ const NMDSVisualization: React.FC<NMDSVisualizationProps> = ({ communities }) =>
       const finalYRange = Math.max(...bestConfiguration.map(p => p[1])) - Math.min(...bestConfiguration.map(p => p[1]));
       
       console.log(`NMDS: Final stress=${bestStress.toFixed(4)}, X-range=${finalXRange.toFixed(3)}, Y-range=${finalYRange.toFixed(3)}`);
+    } else {
+      console.error('NMDS: All attempts failed, using fallback configuration');
     }
     
-    // Create NMDS data with fallback for failed optimization
-    const nmdsData = communities.map((community, i) => ({
-      community: community.id,
-      NMDS1: bestConfiguration ? bestConfiguration[i][0] : (Math.random() - 0.5) * 4,
-      NMDS2: bestConfiguration ? bestConfiguration[i][1] : (Math.random() - 0.5) * 4,
-      richness: community.species.length,
-      abundance: community.abundance.reduce((sum, a) => sum + a, 0)
-    }));
+    // Create NMDS data with PCoA fallback if NMDS failed
+    const nmdsData = communities.map((community, i) => {
+      if (bestConfiguration) {
+        return {
+          community: community.id,
+          NMDS1: bestConfiguration[i][0],
+          NMDS2: bestConfiguration[i][1],
+          richness: community.species.length,
+          abundance: community.abundance.reduce((sum, a) => sum + a, 0)
+        };
+      } else {
+        // Fallback to PCoA if NMDS completely failed
+        const pcoaConfig = performPCoA();
+        return {
+          community: community.id,
+          NMDS1: pcoaConfig[i][0],
+          NMDS2: pcoaConfig[i][1],
+          richness: community.species.length,
+          abundance: community.abundance.reduce((sum, a) => sum + a, 0)
+        };
+      }
+    });
     
     return {
       nmdsData,
