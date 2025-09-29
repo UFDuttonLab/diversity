@@ -77,36 +77,63 @@ const NMDSVisualization: React.FC<NMDSVisualizationProps> = ({ communities }) =>
       };
     }
 
-    // Robust NMDS Algorithm with rank-based stress minimization
+    // Proper NMDS Algorithm with rank-based stress minimization
     let bestStress = Infinity;
     let bestConfiguration = null;
     let bestIterations = 0;
-    const maxIterations = 500;
-    const tolerance = 1e-6;
+    const maxIterations = 1000;
+    const tolerance = 1e-8;
     
-    // Helper function for isotonic regression (monotonic regression)
-    const isotonicRegression = (dissimilarities: number[], distances: number[]) => {
-      const pairs = dissimilarities.map((d, i) => ({ diss: d, dist: distances[i], index: i }))
-        .filter(p => p.diss > 0)
-        .sort((a, b) => a.diss - b.diss);
+    // Extract dissimilarities and their ranks for NMDS
+    const dissimilarities: number[] = [];
+    const pairIndices: [number, number][] = [];
+    
+    for (let i = 0; i < n; i++) {
+      for (let j = i + 1; j < n; j++) {
+        dissimilarities.push(brayCurtis[i][j]);
+        pairIndices.push([i, j]);
+      }
+    }
+    
+    // Sort dissimilarities to get ranks (for non-metric scaling)
+    const sortedIndices = dissimilarities
+      .map((_, index) => index)
+      .sort((a, b) => dissimilarities[a] - dissimilarities[b]);
+    
+    // Improved isotonic regression using Pool Adjacent Violators
+    const isotonicRegression = (distances: number[]): number[] => {
+      // Create pairs of (rank, distance) sorted by rank
+      const pairs = sortedIndices.map((origIndex, rankIndex) => ({
+        rank: rankIndex,
+        distance: distances[origIndex],
+        origIndex
+      }));
       
       const fitted = new Array(pairs.length);
       
-      // Pool Adjacent Violators Algorithm for isotonic regression
+      // Pool Adjacent Violators Algorithm
       let i = 0;
       while (i < pairs.length) {
         let j = i;
-        let sum = pairs[i].dist;
+        let sum = pairs[i].distance;
         let count = 1;
         
-        // Find violating sequence and pool
-        while (j + 1 < pairs.length && sum / count > pairs[j + 1].dist) {
-          j++;
-          sum += pairs[j].dist;
-          count++;
+        // Look ahead to find violations and pool them
+        while (j + 1 < pairs.length) {
+          const currentAvg = sum / count;
+          const nextDistance = pairs[j + 1].distance;
+          
+          if (currentAvg > nextDistance) {
+            // Violation found, add to pool
+            j++;
+            sum += pairs[j].distance;
+            count++;
+          } else {
+            break;
+          }
         }
         
-        // Set all values in pool to average
+        // Set all pooled values to their average
         const average = sum / count;
         for (let k = i; k <= j; k++) {
           fitted[k] = average;
@@ -116,75 +143,105 @@ const NMDSVisualization: React.FC<NMDSVisualizationProps> = ({ communities }) =>
       }
       
       // Map back to original order
-      const result = new Array(dissimilarities.length);
-      pairs.forEach((p, idx) => {
-        result[p.index] = fitted[idx] || 0;
+      const result = new Array(distances.length);
+      pairs.forEach((pair, fittedIndex) => {
+        result[pair.origIndex] = fitted[fittedIndex];
       });
       
       return result;
     };
     
-    // Calculate rank-based stress
-    const calculateStress = (config: number[][]) => {
-      // Calculate 2D distances
-      const distances2D = [];
-      const dissimilarities = [];
+    // Calculate Kruskal's stress-1
+    const calculateStress = (config: number[][]): number => {
+      const distances: number[] = [];
       
+      // Calculate Euclidean distances between all pairs
       for (let i = 0; i < n; i++) {
         for (let j = i + 1; j < n; j++) {
           const dx = config[i][0] - config[j][0];
           const dy = config[i][1] - config[j][1];
-          const dist2D = Math.sqrt(dx * dx + dy * dy);
-          
-          distances2D.push(dist2D);
-          dissimilarities.push(brayCurtis[i][j]);
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          distances.push(dist);
         }
       }
       
-      // Perform isotonic regression to get fitted distances
-      const fittedDistances = isotonicRegression(dissimilarities, distances2D);
+      // Get fitted distances from isotonic regression
+      const fittedDistances = isotonicRegression(distances);
       
-      // Calculate Kruskal's stress formula
+      // Calculate Kruskal's stress-1: sqrt(Σ(d - d̂)² / Σd²)
       let numerator = 0;
       let denominator = 0;
       
-      for (let k = 0; k < distances2D.length; k++) {
-        const diff = distances2D[k] - fittedDistances[k];
+      for (let k = 0; k < distances.length; k++) {
+        const diff = distances[k] - fittedDistances[k];
         numerator += diff * diff;
-        denominator += distances2D[k] * distances2D[k];
+        denominator += distances[k] * distances[k];
       }
       
-      return denominator > 0 ? Math.sqrt(numerator / denominator) : 0;
+      return denominator > 0 ? Math.sqrt(numerator / denominator) : 1.0;
+    };
+
+    // Principal Coordinate Analysis (PCoA) for better initialization
+    const initializePCoA = (): number[][] => {
+      // Convert dissimilarities to similarities for PCoA
+      const similarities = brayCurtis.map(row => 
+        row.map(val => 1 - val)
+      );
+      
+      // Double centering matrix for PCoA
+      const n = similarities.length;
+      const centered = Array(n).fill(0).map(() => Array(n).fill(0));
+      
+      // Calculate row and column means
+      const rowMeans = similarities.map(row => 
+        row.reduce((sum, val) => sum + val, 0) / n
+      );
+      const colMeans = Array(n).fill(0).map((_, j) => 
+        similarities.reduce((sum, row) => sum + row[j], 0) / n
+      );
+      const grandMean = rowMeans.reduce((sum, val) => sum + val, 0) / n;
+      
+      // Apply double centering
+      for (let i = 0; i < n; i++) {
+        for (let j = 0; j < n; j++) {
+          centered[i][j] = similarities[i][j] - rowMeans[i] - colMeans[j] + grandMean;
+        }
+      }
+      
+      // Simple eigen-like initialization (approximate first 2 components)
+      return Array(n).fill(0).map((_, i) => [
+        centered[i].reduce((sum, val) => sum + val, 0) / n,
+        centered[i].reduce((sum, val, j) => sum + val * Math.cos(2 * Math.PI * j / n), 0) / n
+      ]);
     };
     
-    // Try multiple diverse random starts to find global minimum
-    for (let attempt = 0; attempt < 15; attempt++) {
-      // Initialize with diverse starting configurations
+    // Try multiple starting configurations
+    for (let attempt = 0; attempt < 20; attempt++) {
       let config: number[][];
+      
       if (attempt === 0) {
-        // First attempt: random circle
+        // Best: Start with PCoA approximation
+        config = initializePCoA();
+      } else if (attempt === 1) {
+        // Circle pattern
         config = Array(n).fill(0).map((_, i) => {
           const angle = (i / n) * 2 * Math.PI;
           return [Math.cos(angle) * 2, Math.sin(angle) * 2];
         });
-      } else if (attempt === 1) {
-        // Second attempt: grid pattern
-        const gridSize = Math.ceil(Math.sqrt(n));
-        config = Array(n).fill(0).map((_, i) => [
-          (i % gridSize - gridSize/2) * 1.5,
-          (Math.floor(i / gridSize) - gridSize/2) * 1.5
-        ]);
       } else {
-        // Random configurations with good spread
+        // Random configurations with diverse scales
+        const scale = 0.5 + attempt * 0.3;
         config = Array(n).fill(0).map(() => [
-          (Math.random() - 0.5) * 6,
-          (Math.random() - 0.5) * 6
+          (Math.random() - 0.5) * scale * 8,
+          (Math.random() - 0.5) * scale * 8
         ]);
       }
       
       let prevStress = Infinity;
       let iterations = 0;
+      let stagnationCount = 0;
       
+      // Gradient descent optimization
       for (let iter = 0; iter < maxIterations; iter++) {
         iterations = iter + 1;
         const currentStress = calculateStress(config);
@@ -193,86 +250,90 @@ const NMDSVisualization: React.FC<NMDSVisualizationProps> = ({ communities }) =>
         if (Math.abs(prevStress - currentStress) < tolerance) {
           break;
         }
-        prevStress = currentStress;
         
-        // Gradient descent with adaptive step size
-        const stepSize = Math.max(0.001, 0.1 * Math.exp(-iter / 100));
-        const newConfig = config.map(point => [...point]);
-        
-        // Calculate gradients for each point
-        for (let i = 0; i < n; i++) {
-          let gradX = 0;
-          let gradY = 0;
-          
-          for (let j = 0; j < n; j++) {
-            if (i !== j) {
-              const dx = config[i][0] - config[j][0];
-              const dy = config[i][1] - config[j][1];
-              const dist2D = Math.sqrt(dx * dx + dy * dy);
-              
-              if (dist2D > 1e-10) {
-                // Target distance from Bray-Curtis similarity
-                const targetDist = brayCurtis[i][j] * 3; // Scale factor for better visualization
-                const error = dist2D - targetDist;
-                
-                gradX += error * dx / dist2D;
-                gradY += error * dy / dist2D;
-              }
-            }
-          }
-          
-          newConfig[i][0] -= stepSize * gradX;
-          newConfig[i][1] -= stepSize * gradY;
+        // Check for stagnation
+        if (Math.abs(prevStress - currentStress) < 1e-6) {
+          stagnationCount++;
+          if (stagnationCount > 20) break;
+        } else {
+          stagnationCount = 0;
         }
         
-        config = newConfig;
+        prevStress = currentStress;
+        
+        // Adaptive step size
+        const baseStep = 0.05;
+        const stepSize = baseStep * Math.exp(-iter / 200) * (1 + 0.1 * Math.random());
+        
+        // Calculate stress-based gradients
+        const gradients = Array(n).fill(0).map(() => [0, 0]);
+        
+        for (let pairIdx = 0; pairIdx < pairIndices.length; pairIdx++) {
+          const [i, j] = pairIndices[pairIdx];
+          const dx = config[i][0] - config[j][0];
+          const dy = config[i][1] - config[j][1];
+          const currentDist = Math.sqrt(dx * dx + dy * dy);
+          
+          if (currentDist > 1e-10) {
+            // Get all distances for isotonic regression
+            const allDistances: number[] = [];
+            for (let pi = 0; pi < pairIndices.length; pi++) {
+              const [pi1, pi2] = pairIndices[pi];
+              const pdx = config[pi1][0] - config[pi2][0];
+              const pdy = config[pi1][1] - config[pi2][1];
+              allDistances.push(Math.sqrt(pdx * pdx + pdy * pdy));
+            }
+            
+            const fittedDistances = isotonicRegression(allDistances);
+            const targetDist = fittedDistances[pairIdx];
+            
+            // Gradient based on difference from fitted distance
+            const error = currentDist - targetDist;
+            const gradMagnitude = error / currentDist;
+            
+            gradients[i][0] += gradMagnitude * dx;
+            gradients[i][1] += gradMagnitude * dy;
+            gradients[j][0] -= gradMagnitude * dx;
+            gradients[j][1] -= gradMagnitude * dy;
+          }
+        }
+        
+        // Update configuration
+        for (let i = 0; i < n; i++) {
+          config[i][0] -= stepSize * gradients[i][0];
+          config[i][1] -= stepSize * gradients[i][1];
+        }
       }
       
       const finalStress = calculateStress(config);
       
-      // Keep best configuration from all attempts
       if (finalStress < bestStress) {
         bestStress = finalStress;
-        bestConfiguration = [...config];
+        bestConfiguration = config.map(point => [...point]);
         bestIterations = iterations;
       }
     }
     
-    // Standardize and rotate configuration for better visualization
+    // Post-process the best configuration
     if (bestConfiguration) {
-      // Center the configuration
+      // Center at origin
       const meanX = bestConfiguration.reduce((sum, p) => sum + p[0], 0) / n;
       const meanY = bestConfiguration.reduce((sum, p) => sum + p[1], 0) / n;
+      
       bestConfiguration.forEach(p => {
         p[0] -= meanX;
         p[1] -= meanY;
       });
       
-      // Scale to ensure good spread on both axes
-      const rangeX = Math.max(...bestConfiguration.map(p => p[0])) - Math.min(...bestConfiguration.map(p => p[0]));
-      const rangeY = Math.max(...bestConfiguration.map(p => p[1])) - Math.min(...bestConfiguration.map(p => p[1]));
-      const maxRange = Math.max(rangeX, rangeY, 0.1);
+      // Scale to reasonable range while preserving relative distances
+      const allDists = bestConfiguration.flatMap(p => [Math.abs(p[0]), Math.abs(p[1])]);
+      const maxDist = Math.max(...allDists, 0.1);
+      const scale = 2.5 / maxDist;
       
-      // Scale to use full range while maintaining aspect ratio
-      const scale = 2 / maxRange;
       bestConfiguration.forEach(p => {
         p[0] *= scale;
         p[1] *= scale;
       });
-      
-      // If one axis has very little variation, rotate to maximize spread
-      if (rangeX / rangeY < 0.3 || rangeY / rangeX < 0.3) {
-        const angle = Math.PI / 4; // 45 degree rotation
-        const cos = Math.cos(angle);
-        const sin = Math.sin(angle);
-        
-        bestConfiguration.forEach(p => {
-          const x = p[0];
-          const y = p[1];
-          p[0] = x * cos - y * sin;
-          p[1] = x * sin + y * cos;
-        });
-      }
     }
     
     // Create NMDS coordinates with proper fallback
